@@ -1,0 +1,10 @@
+# DB
+data
+
+# API
+build
+.idea/*
+.gradle
+gradle/*
+gradlew
+gradlew.bat

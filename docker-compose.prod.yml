@@ -1,0 +1,31 @@
+services:
+  quant-ai-mongo-db:
+    container_name: quant-ai-mongo-db
+    restart: unless-stopped
+    healthcheck:
+      test: mongosh --eval 'db.runCommand("ping").ok' --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    image: mongo:latest
+    ports: [10000:27017]
+    volumes: [../data/mongodb-data:/data]
+    networks: [quant-ai-mongo-db]
+
+  quant-ai-persistence-middleware:
+    container_name: quant-ai-persistence-middleware
+    depends_on:
+      quant-ai-mongo-db:
+        condition: service_healthy
+    build:
+      context: .
+      target: prod
+    ports: [10001:8080]
+    networks: [quant-ai-persistence-middleware, quant-ai-mongo-db]
+
+networks:
+  quant-ai-mongo-db:
+    driver: bridge
+  quant-ai-persistence-middleware:
+    driver: bridge

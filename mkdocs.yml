@@ -1,0 +1,11 @@
+site_name: persistence-middleware
+repo_url: https://github.com/Quant-NTU/persistence-middleware
+repo_name: Quant AI - Persistence Middleware
+
+theme:
+  name: material
+
+plugins:
+  - search
+  - autorefs  
+  - mermaid2
