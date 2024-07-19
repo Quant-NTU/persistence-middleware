@@ -1,7 +1,3 @@
-# DB
-data
-
-# API
 build
 .idea/*
 .gradle
