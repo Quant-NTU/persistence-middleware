@@ -17,24 +17,14 @@ services:
     depends_on:
       quant-ai-mongo-db:
         condition: service_healthy
-      quant-ai-persistence-middleware-setup:
-        condition: service_completed_successfully
     build:
       context: .
       target: dev
     ports: [10001:8080]
     volumes: [.:/src]
     networks: [quant-ai-persistence-middleware, quant-ai-persistence-etl, quant-ai-mongo-db, quant-ai-mq]
-    entrypoint: [sleep, infinity]
+    entrypoint: [/bin/sh, /src/dev-setup.sh, -c]
     init: true
-
-  quant-ai-persistence-middleware-setup:
-    container_name: quant-ai-persistence-middleware-setup
-    build:
-      context: .
-      target: dev
-    volumes: [.:/src]
-    entrypoint: [/bin/sh, /src/dev-setup.sh, -b]
 
 networks:
   quant-ai-mongo-db:
