@@ -10,7 +10,7 @@ services:
       start_period: 30s
     image: mongo:latest
     ports: [10000:27017]
-    volumes: [../data/mongodb-data:/data]
+    volumes: [../data/mongodb-data/configdb:/data/configdb, ../data/mongodb-data/db:/data/db]
     networks: [quant-ai-mongo-db]
 
   quant-ai-persistence-middleware:
@@ -22,10 +22,14 @@ services:
       context: .
       target: local
     ports: [10001:8080]
-    networks: [quant-ai-persistence-middleware, quant-ai-mongo-db]
+    networks: [quant-ai-persistence-middleware, quant-ai-persistence-etl, quant-ai-mongo-db, quant-ai-mq]
 
 networks:
   quant-ai-mongo-db:
     driver: bridge
   quant-ai-persistence-middleware:
+    driver: bridge
+  quant-ai-persistence-etl:
+    driver: bridge
+  quant-ai-mq:
     driver: bridge

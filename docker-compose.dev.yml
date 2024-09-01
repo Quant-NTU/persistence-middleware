@@ -8,26 +8,40 @@ services:
       retries: 10
       start_period: 30s
     image: mongo:latest
-    ports: [9000:27017]
-    volumes: [../data/mongodb-data:/data]
+    ports: [10000:27017]
+    volumes: [../data/mongodb-data/configdb:/data/configdb, ../data/mongodb-data/db:/data/db]
     networks: [quant-ai-mongo-db]
 
-  quant-ai-persistence-middleware-dev:
-    container_name: quant-ai-persistence-middleware-dev
+  quant-ai-persistence-middleware:
+    container_name: quant-ai-persistence-middleware
     depends_on:
       quant-ai-mongo-db:
         condition: service_healthy
+      quant-ai-persistence-middleware-setup:
+        condition: service_completed_successfully
     build:
       context: .
       target: dev
-    ports: [9001:8080]
+    ports: [10001:8080]
     volumes: [.:/src]
-    networks: [quant-ai-persistence-middleware, quant-ai-mongo-db]
+    networks: [quant-ai-persistence-middleware, quant-ai-persistence-etl, quant-ai-mongo-db, quant-ai-mq]
     entrypoint: [sleep, infinity]
     init: true
+
+  quant-ai-persistence-middleware-setup:
+    container_name: quant-ai-persistence-middleware-setup
+    build:
+      context: .
+      target: dev
+    volumes: [.:/src]
+    entrypoint: [/bin/sh, /src/dev-setup.sh, -b]
 
 networks:
   quant-ai-mongo-db:
     driver: bridge
   quant-ai-persistence-middleware:
+    driver: bridge
+  quant-ai-persistence-etl:
+    driver: bridge
+  quant-ai-mq:
     driver: bridge
