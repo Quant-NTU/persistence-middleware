@@ -40,6 +40,7 @@ class StrategyController(
     // @Value("\${quantai.temp.s3.path}") lateinit var tempDirectory: String
     // @Value("\${quantai.persistence.s3.url}") lateinit var s3_url: String
     private var tempDirectory: String = "temp"
+    private var s3_strategy_scripts_folder: String = "/strategy_scripts"
     private var s3_url: String = "http://quant-ai-persistence-s3:8080/"
     private val tempStoragePath = Paths.get(tempDirectory)
     private var webClient: WebClient = WebClient.create()
@@ -93,23 +94,25 @@ class StrategyController(
     fun saveFile(
         @RequestBody request: StrategyFileRequest,
         @PathVariable("user_id") user_id: String
-    ) : ResponseEntity<String> {
+    ) : ResponseEntity<Strategy> {
         log.info("Received POST quest with file payload: {}", request)
         Files.createDirectories(tempStoragePath)
-        val user = usersRepository.findOneByUid(user_id)?.uid
+        val user = usersRepository.findOneByUid(user_id)
 
         // save
         val filename = "" + System.currentTimeMillis() + ".py"
         val file = File("$tempStoragePath/$filename")
         file.writeText(request.script)
 
+        val uid = user?.uid
+        val path = "$s3_strategy_scripts_folder/$uid"
         val builder = MultipartBodyBuilder()
-        builder.part("path", "/strategy_scripts/$user")
+        builder.part("path", path)
         builder.part("file", File("$tempStoragePath/$filename").readBytes())
                .header("Content-Disposition", "form-data; name=file; filename=$filename")
         val bodyValues = builder.build()
 
-        val response =
+        val uploadResponse =
                 webClient!!
                         .post()
                         .uri(s3_url + "/upload")
@@ -118,9 +121,49 @@ class StrategyController(
                         .retrieve()
                         .toEntity(String::class.java)
                         .block()
-
         file.delete()
-        return response!!
+
+        // Check if upload is successful
+        if (uploadResponse?.statusCode != HttpStatus.OK) {
+            return ResponseEntity(uploadResponse!!.statusCode)
+        }
+
+        val scriptPath = "$path/$filename"
+        var response: Strategy
+
+        if (request.uid == null) { //FIXME: This is always false
+            // Create
+            response = strategiesRepository.save(
+                Strategy(
+                    title = request.title,
+                    script = scriptPath,
+                    interval = request.interval,
+                    status = request.status,
+                    owner = user
+                )
+            )
+        } else {
+            // Update
+            val strategy = strategiesRepository.findOneByUid(request.uid)
+            if (strategy == null) {
+                return ResponseEntity(HttpStatus.NOT_FOUND)
+            }
+            response = strategiesRepository.save(
+                Strategy(
+                    title = request.title,
+                    script = scriptPath,
+                    interval = request.interval,
+                    status = request.status,
+                    transactionCount = strategy.transactionCount,
+                    owner = user,
+                    createdDate = strategy.createdDate,
+                    updatedDate = LocalDateTime.now(),
+                    uid = request.uid,
+                    _id = strategy._id
+                )
+            )
+        }
+        return ResponseEntity.ok(response)
     }
 
     // // Create/Update a strategy from a user
