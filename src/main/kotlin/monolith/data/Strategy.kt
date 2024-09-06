@@ -18,10 +18,13 @@ data class Strategy (
 
         val script: String,
 
-        val interval: StrategyInterval,
+        // TODO: Remove from Strategy. This will be handled by the Pipeline
+        val interval: StrategyInterval?,
 
-        val status: StrategyStatus,
+        // TODO: Remove from Strategy. This will be handled by the Pipeline
+        val status: StrategyStatus?,
 
+        // TODO: Remove from Strategy. This will be handled by the Pipeline
         var transactionCount: Long = 0,
 
         @DBRef
@@ -37,7 +40,8 @@ data class Strategy (
         @Id
         val _id: ObjectId = ObjectId.get(), // document id, it changes when updated via upsert
 
-        @DBRef
+
+        // @DBRef
         val transactions: MutableList<Transaction> = mutableListOf()
         ) {
                 fun addTransaction() {

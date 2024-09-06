@@ -1,4 +1,5 @@
 package monolith
+
 import org.slf4j.LoggerFactory
 import monolith.data.*
 import monolith.request.StrategyRequest
@@ -33,6 +34,7 @@ import java.io.FileWriter
 @RequestMapping("/strategies")
 class StrategyController(
     private val strategiesRepository: StrategyRepository,
+    private val newStrategiesRepository: NewStrategyRepository,
     private val usersRepository: UserRepository,
     private val cryptoRepository: CryptoRepository,
     private val stockRepository: StockRepository,
@@ -94,13 +96,14 @@ class StrategyController(
     fun saveFile(
         @RequestBody request: StrategyFileRequest,
         @PathVariable("user_id") user_id: String
-    ) : ResponseEntity<Strategy> {
+    ) : ResponseEntity<NewStrategy> {
         log.info("Received POST quest with file payload: {}", request)
         Files.createDirectories(tempStoragePath)
         val user = usersRepository.findOneByUid(user_id)
 
         // save
-        val filename = "" + System.currentTimeMillis() + ".py"
+        val filenameTimestamp = "" + System.currentTimeMillis()
+        val filename = filenameTimestamp + ".py"
         val file = File("$tempStoragePath/$filename")
         file.writeText(request.script)
 
@@ -129,86 +132,47 @@ class StrategyController(
         }
 
         val scriptPath = "$path/$filename"
-        var response: Strategy
+        var response: NewStrategy
 
-        if (request.uid == null) { //FIXME: This is always false
-            // Create
-            response = strategiesRepository.save(
-                Strategy(
-                    title = request.title,
-                    script = scriptPath,
-                    interval = request.interval,
-                    status = request.status,
-                    owner = user
-                )
+
+        response = newStrategiesRepository.save(
+            NewStrategy(
+                title = request.title,
+                uid = filenameTimestamp,
+                path = scriptPath,
+                owner = user,
             )
-        } else {
-            // Update
-            val strategy = strategiesRepository.findOneByUid(request.uid)
-            if (strategy == null) {
-                return ResponseEntity(HttpStatus.NOT_FOUND)
-            }
-            response = strategiesRepository.save(
-                Strategy(
-                    title = request.title,
-                    script = scriptPath,
-                    interval = request.interval,
-                    status = request.status,
-                    transactionCount = strategy.transactionCount,
-                    owner = user,
-                    createdDate = strategy.createdDate,
-                    updatedDate = LocalDateTime.now(),
-                    uid = request.uid,
-                    _id = strategy._id
-                )
-            )
-        }
+        )
+
         return ResponseEntity.ok(response)
-    }
 
-    // // Create/Update a strategy from a user
-    // @PostMapping("/user/{user_id}", consumes=[MediaType.ALL_VALUE])
-    // fun saveOrUpdateStrategyFromUser(
-    //     @RequestBody request: StrategyRequest,
-    //     @PathVariable("user_id") user_id: String
-    // ) : ResponseEntity<Strategy> {
-    //     log.info("Received POST request with payload: {}", request);
-    //     val user = usersRepository.findOneByUid(user_id)
-    //     var response: Strategy
-    //     if (request.uid == null) { //FIXME: This is always false
-    //         // Create
-    //         response = strategiesRepository.save(
-    //             Strategy(
-    //                 title = request.title,
-    //                 script = request.script,
-    //                 interval = request.interval,
-    //                 status = request.status,
-    //                 owner = user
-    //             )
-    //         )
-    //     } else {
-    //         // Update
-    //         val strategy = strategiesRepository.findOneByUid(request.uid)
-    //         if (strategy == null) {
-    //             return ResponseEntity(HttpStatus.NOT_FOUND)
-    //         }
-    //         response = strategiesRepository.save(
-    //             Strategy(
-    //                 title = request.title,
-    //                 script = request.script,
-    //                 interval = request.interval,
-    //                 status = request.status,
-    //                 transactionCount = strategy.transactionCount,
-    //                 owner = user,
-    //                 createdDate = strategy.createdDate,
-    //                 updatedDate = LocalDateTime.now(),
-    //                 uid = request.uid,
-    //                 _id = strategy._id
-    //             )
-    //         )
-    //     }
-    //     return ResponseEntity.ok(response)
-    // }
+        // if (request.uid == null) { //FIXME: This is always false
+            // Create
+            
+        // }
+        //  else {
+        //     // Update
+        //     val strategy = strategiesRepository.findOneByUid(request.uid)
+        //     if (strategy == null) {
+        //         return ResponseEntity(HttpStatus.NOT_FOUND)
+        //     }
+        //     response = strategiesRepository.save(
+        //         Strategy(
+        //             title = request.title,
+        //             script = scriptPath,
+        //             interval = request.interval,
+        //             status = request.status,
+        //             transactionCount = strategy.transactionCount,
+        //             owner = user,
+        //             createdDate = strategy.createdDate,
+        //             updatedDate = LocalDateTime.now(),
+        //             uid = request.uid,
+        //             _id = strategy._id
+        //         )
+        //     )
+        // }
+        // return ResponseEntity.ok(response)
+    }
 
     // Delete a strategy from a user (Could be "delete a strategy, but we will put the user as a security measure")
     @DeleteMapping("/user/{user_id}/{uid}")
