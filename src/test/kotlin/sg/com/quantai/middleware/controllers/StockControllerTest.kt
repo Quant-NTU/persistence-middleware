@@ -24,7 +24,7 @@ class StockControllerTest
 constructor(
         private val stockRepository: StockRepository,
         private val restTemplate: TestRestTemplate
-    ) {
+) {
 
     @LocalServerPort protected var port: Int = 0
 

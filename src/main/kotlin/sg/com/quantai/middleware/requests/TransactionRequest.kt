@@ -18,4 +18,4 @@ class TransactionRequest(
         val strategy: Strategy? = null,
         val strategyId: String? = null,
         val status: TransactionStatus
-        )
+)

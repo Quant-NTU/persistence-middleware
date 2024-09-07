@@ -21,12 +21,13 @@ import org.mindrot.jbcrypt.BCrypt
 @ExtendWith(SpringExtension::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PortfolioControllerTest
+
 @Autowired
 constructor(
         private val portfolioRepository: PortfolioRepository,
         private val userRepository: UserRepository,
         private val restTemplate: TestRestTemplate
-    ) {
+) {
 
     @LocalServerPort protected var port: Int = 0
 

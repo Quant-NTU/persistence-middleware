@@ -12,5 +12,4 @@ class StrategyRequest(
         val status: StrategyStatus,
         val uid: String?,
         val transactions: List<TransactionRequest>? = null 
-
 )

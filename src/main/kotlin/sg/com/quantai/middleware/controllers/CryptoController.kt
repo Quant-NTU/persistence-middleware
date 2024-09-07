@@ -18,8 +18,8 @@ import org.springframework.http.HttpStatus
 @RestController
 @RequestMapping("/cryptos")
 class CryptoController(
-        private val cryptosRepository: CryptoRepository,
-        private val coinRankingApiService: CoinRankingAPIService
+    private val cryptosRepository: CryptoRepository,
+    private val coinRankingApiService: CoinRankingAPIService
 ) {
     // Retrieve all the cryptos
     @GetMapping

@@ -23,8 +23,8 @@ import org.mindrot.jbcrypt.BCrypt
 @RestController
 @RequestMapping("/users")
 class UserController(
-        private val usersRepository: UserRepository,
-        private val emailService: EmailServiceImpl,
+    private val usersRepository: UserRepository,
+    private val emailService: EmailServiceImpl,
 ) {
 
     // Retrieve all the users

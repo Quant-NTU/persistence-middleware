@@ -13,7 +13,7 @@ import org.springframework.http.HttpStatus
 @RestController
 @RequestMapping("/stock")
 class StockController(
-        private val stockRepository: StockRepository
+    private val stockRepository: StockRepository
 ) {
     // Get All Stocks
     @GetMapping

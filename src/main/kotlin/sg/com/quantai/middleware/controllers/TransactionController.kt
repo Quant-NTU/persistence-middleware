@@ -20,11 +20,13 @@ import java.util.Optional
 
 @RestController
 @RequestMapping("/transactions")
-class TransactionController(private val transactionRepository: TransactionRepository,
-                            private val userRepository: UserRepository,
-                            private val cryptoRepository: CryptoRepository,
-                            private val stockRepository: StockRepository,
-                            private val strategyRepository: StrategyRepository) {
+class TransactionController(
+    private val transactionRepository: TransactionRepository,
+    private val userRepository: UserRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val stockRepository: StockRepository,
+    private val strategyRepository: StrategyRepository
+) {
     private val zmqContext = ZMQ.context(1)
     private val publisherSocket = zmqContext.socket(ZMQ.PUB)
 

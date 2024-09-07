@@ -2,6 +2,7 @@ package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.AccountInfo
+import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
 import sg.com.quantai.middleware.requests.*
 import sg.com.quantai.middleware.repositories.UserRepository
 import org.bson.types.ObjectId
@@ -28,10 +29,12 @@ import java.time.LocalDateTime
 @ExtendWith(SpringExtension::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UserControllerTest
+
 @Autowired
 constructor(
         private val userRepository: UserRepository,
-        private val restTemplate: TestRestTemplate
+        private val emailService: EmailServiceImpl,
+        private val restTemplate: TestRestTemplate,
 ) {
 
     private val defaultUserId = ObjectId.get()

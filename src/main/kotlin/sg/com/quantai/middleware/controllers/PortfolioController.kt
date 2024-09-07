@@ -19,11 +19,12 @@ import java.math.RoundingMode
 
 @RestController
 @RequestMapping("/portfolio")
-class PortfolioController(private val portfolioRepository: PortfolioRepository,
-                          private val userRepository: UserRepository,
-                          private val transactionRepository: TransactionRepository,
-                          private val cryptoRepository: CryptoRepository,
-                          private val stockRepository: StockRepository
+class PortfolioController(
+    private val portfolioRepository: PortfolioRepository,
+    private val userRepository: UserRepository,
+    private val transactionRepository: TransactionRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val stockRepository: StockRepository
 ) {
 
     private val logger: Logger = LoggerFactory.getLogger(AccountInfoController::class.java)

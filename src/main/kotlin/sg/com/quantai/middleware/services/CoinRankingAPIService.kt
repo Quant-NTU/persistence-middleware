@@ -17,7 +17,6 @@ import org.springframework.web.client.RestTemplate
 @Component
 private class Headers {
     @Value("\${cryptoapi.header.rapidapi.host}") lateinit var host: String
-
     @Value("\${cryptoapi.header.rapidapi.key}") lateinit var key: String
 }
 

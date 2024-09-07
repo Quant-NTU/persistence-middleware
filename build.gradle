@@ -19,8 +19,6 @@ apply plugin: "kotlin-spring"
 apply plugin: "org.springframework.boot"
 apply plugin: "io.spring.dependency-management"
 
-// sourceCompatibility = 21
-
 compileKotlin {
     kotlinOptions {
         freeCompilerArgs = ["-Xjsr305=strict"]
@@ -56,7 +54,7 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-    testImplementation("de.flapdoodle.embed:de.flapdoodle.embed.mongo")
+    testImplementation("de.flapdoodle.embed:de.flapdoodle.embed.mongo:4.17.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 }
