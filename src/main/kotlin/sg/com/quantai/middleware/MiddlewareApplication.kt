@@ -1,11 +1,11 @@
 package sg.com.quantai.middleware
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.SpringApplication
+import org.springframework.boot.runApplication
 
 @SpringBootApplication
-open class MainApplication
+class MiddlewareApplication
 
 fun main(args: Array<String>) {
-	SpringApplication.run(MainApplication::class.java, *args)
+	runApplication<MiddlewareApplication>(*args)
 }
