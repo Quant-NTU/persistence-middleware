@@ -70,10 +70,37 @@ class StrategyController(
     @GetMapping("/user/{user_id}")
     fun getAllStrategiesFromUser(
         @PathVariable("user_id") user_id: String
-    ) : ResponseEntity<List<Strategy>> {
-        val user = usersRepository.findOneByUid(user_id)
-        val strategies = strategiesRepository.findByOwner(user)
-        return ResponseEntity.ok(strategies)
+    ) : ResponseEntity<List<NewStrategy>> {
+        // try {
+            val user = usersRepository.findOneByUid(user_id)
+            var strategies = newStrategiesRepository.findByOwner(user)
+            strategies.forEach{
+                // Build HTTP Request Body
+                val builder = MultipartBodyBuilder()
+                builder.part("path", it.path)
+
+                // Send HTTP Post Request
+                val response =
+                        webClient!!
+                            .post()
+                            .uri(s3_url + "/read")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .body(BodyInserters.fromMultipartData(builder.build()))
+                            .retrieve()
+                            .toEntity(String::class.java)
+                            .block()
+
+                // Check if upload is successful
+                // if (response?.statusCode != HttpStatus.OK) {
+                    it.content = response!!.body
+                // } else {
+                //     it.content = "Error during loading. Contact the system admin."
+                // }
+            }
+            return ResponseEntity(strategies, HttpStatus.OK)
+        // } catch (e: Exception) {
+        //     return ResponseEntity(listOf<NewStrategy>(), HttpStatus.NOT_FOUND)
+        // }
     }
 
     @GetMapping("/user/{user_id}/{strategy_id}")

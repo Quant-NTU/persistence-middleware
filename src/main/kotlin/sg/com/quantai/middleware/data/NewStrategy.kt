@@ -3,6 +3,7 @@ package sg.com.quantai.middleware.data
 import sg.com.quantai.middleware.data.Transaction
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.Id
+import org.springframework.data.annotation.Transient 
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.DocumentReference
@@ -23,5 +24,8 @@ data class NewStrategy (
     val createdDate: LocalDateTime = LocalDateTime.now(),
     val updatedDate: LocalDateTime = LocalDateTime.now(),
     //Relationships columns
-    @DBRef val owner: User
+    @DBRef val owner: User,
+
+    // Transient
+    var content: String? = null //TODO: This shouldn't be in the database
 )
