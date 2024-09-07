@@ -16,11 +16,13 @@ import java.math.BigDecimal
 
 @RestController
 @RequestMapping("/accountinfo")
-class AccountInfoController(private val accountInfoRepository: AccountInfoRepository,
-                            private val portfolioRepository: PortfolioRepository,
-                            private val cryptoRepository: CryptoRepository,
-                            private val stockRepository: StockRepository,
-                            private val userRepository: UserRepository) {
+class AccountInfoController(
+    private val accountInfoRepository: AccountInfoRepository,
+    private val portfolioRepository: PortfolioRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val stockRepository: StockRepository,
+    private val userRepository: UserRepository
+) {
 
     private val logger: Logger = LoggerFactory.getLogger(AccountInfoController::class.java)
 

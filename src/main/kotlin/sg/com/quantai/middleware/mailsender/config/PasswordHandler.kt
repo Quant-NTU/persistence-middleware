@@ -1,14 +1,14 @@
 package sg.com.quantai.middleware.mailsender.config
 
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.stereotype.Service;
-import javax.mail.internet.InternetAddress;
-import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import jakarta.mail.MessagingException
+import jakarta.mail.internet.MimeMessage
+import org.springframework.mail.javamail.JavaMailSender
+import org.springframework.mail.javamail.MimeMessageHelper
+import org.springframework.stereotype.Service
+import jakarta.mail.internet.InternetAddress
+import org.springframework.stereotype.Component
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 
 @Component
 private class AppProperties {
@@ -31,7 +31,7 @@ class EmailServiceImpl (private val javaMailSender: JavaMailSender) {
         try {
 
         val message: MimeMessage = javaMailSender.createMimeMessage();
-        val helper = MimeMessageHelper(message, true)
+        val helper: MimeMessageHelper = MimeMessageHelper(message, true)
 
         val resetpassword_link = appProperties.link
         var content = "$name have requested to reset your password. Your validation token is $token \n\n Please click the link below within 1 hour to reset password: \n"
