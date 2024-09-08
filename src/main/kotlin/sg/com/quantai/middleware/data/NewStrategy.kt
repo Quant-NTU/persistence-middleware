@@ -1,16 +1,12 @@
 package sg.com.quantai.middleware.data
 
-import sg.com.quantai.middleware.data.Transaction
+import java.time.LocalDateTime
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Transient 
 import org.springframework.data.mongodb.core.index.Indexed
-import org.springframework.data.mongodb.core.mapping.Document
-import org.springframework.data.mongodb.core.mapping.DocumentReference
 import org.springframework.data.mongodb.core.mapping.DBRef
-import java.time.LocalDateTime
-import java.math.BigDecimal
-import kotlin.collections.List
+import org.springframework.data.mongodb.core.mapping.Document
 
 @Document(collection = "newstrategies")
 data class NewStrategy (
