@@ -65,7 +65,7 @@ class StrategyController(
         strategies.forEach{
             // Build HTTP Request Body
             val builder = MultipartBodyBuilder()
-            builder.part("path", it.path)
+            builder.part("file_path", it.path)
 
             // Send HTTP Post Request
             val response = webClient
