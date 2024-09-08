@@ -1,3 +1,16 @@
-data
-.gradle
-build
+# data
+# .gradle
+# build
+
+# dir
+.idea/*
+.gradle/*
+.kotlin/*
+bin/*
+build/*
+gradle/*
+temp/*
+
+# files
+gradlew
+gradlew.bat

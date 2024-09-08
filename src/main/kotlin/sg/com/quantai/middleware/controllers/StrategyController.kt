@@ -17,6 +17,7 @@ import java.math.BigDecimal
 import java.nio.file.Files
 import java.nio.file.Paths
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.MediaType
@@ -38,14 +39,15 @@ class StrategyController(
     private val newStrategiesRepository: NewStrategyRepository,
     private val usersRepository: UserRepository
 ) {
-//     @Value("\${quantai.temp.s3.path}") lateinit var tempDirectory: String
-//     @Value("\${quantai.persistence.s3.url}") lateinit var s3Url: String
-    private var tempDirectory: String = "temp" //FIXME: Use value from properties instead of hardcoded solution
+    @Value("\${quantai.temp.s3.path}") var tempDirectory: String = "temp" //FIXME: Use value from properties instead of hardcoded solution
+    @Value("\${quantai.persistence.s3.url}") var s3Url: String = "http://quant-ai-persistence-s3:8080" //FIXME: Use value from properties instead of hardcoded solution
     private var s3StrategyScriptsFolder: String = "/strategy_scripts"
-    private var s3Url: String = "http://quant-ai-persistence-s3:8080/" //FIXME: Use value from properties instead of hardcoded solution
     private val tempStoragePath = Paths.get(tempDirectory)
-    private var webClient: WebClient = WebClient.create()
     private val log = LoggerFactory.getLogger(StrategyController::class.java)
+
+    private fun s3WebClient() : WebClient {
+        return WebClient.builder().baseUrl(s3Url).build()
+    }
 
     // Retrieve all strategies
     @GetMapping("")
@@ -58,26 +60,29 @@ class StrategyController(
     @GetMapping("/user/{user_id}")
     fun getAllStrategiesFromUser(
         @PathVariable("user_id") userId: String
-    ) : ResponseEntity<List<NewStrategy>> {
+    ) : ResponseEntity<List<NewStrategy>>? {
         val user = usersRepository.findOneByUid(userId)
         val strategies = newStrategiesRepository.findByOwner(user)
 
         strategies.forEach{
             // Build HTTP Request Body
             val builder = MultipartBodyBuilder()
-            builder.part("file_path", it.path)
+            builder.part("path", it.path)
+            val filePath = it.path
 
-            // Send HTTP Post Request
-            val response = webClient
-                                .post()
-                                .uri("$s3Url/read")
-                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                                .body(BodyInserters.fromMultipartData(builder.build()))
-                                .retrieve()
-                                .toEntity(String::class.java)
-                                .block()
+            // Send HTTP Get Request
+            try {
+                val response = s3WebClient()
+                .get()
+                .uri("/read?path=$filePath")
+                    .retrieve()
+                    .toEntity(String::class.java)
+                    .block()
 
-            it.content = response!!.body
+                it.content = response!!.body
+            } catch (e: Exception) {
+                it.content = "WebClient error. Need to fix this."
+            }
         }
 
         return ResponseEntity(strategies, HttpStatus.OK)
@@ -141,9 +146,9 @@ class StrategyController(
                .header("Content-Disposition", "form-data; name=file; filename=$filename")
 
         // Send HTTP Post Request
-        val uploadResponse = webClient
+        val uploadResponse = s3WebClient()
                                 .post()
-                                .uri("$s3Url/upload")
+                                .uri("/upload")
                                 .contentType(MediaType.MULTIPART_FORM_DATA)
                                 .body(BodyInserters.fromMultipartData(builder.build()))
                                 .retrieve()
