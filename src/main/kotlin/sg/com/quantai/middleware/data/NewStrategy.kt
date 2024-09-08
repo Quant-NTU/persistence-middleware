@@ -25,7 +25,6 @@ data class NewStrategy (
     val updatedDate: LocalDateTime = LocalDateTime.now(),
     //Relationships columns
     @DBRef val owner: User,
-
-    // Transient
-    var content: String? = null //TODO: This shouldn't be in the database
-)
+) {
+    @Transient var content: String? = null;
+}
