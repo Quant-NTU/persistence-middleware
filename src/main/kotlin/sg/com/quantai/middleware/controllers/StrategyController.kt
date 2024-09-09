@@ -1,63 +1,54 @@
 package sg.com.quantai.middleware.controllers
 
-import sg.com.quantai.middleware.data.Strategy
-import sg.com.quantai.middleware.data.NewStrategy
 import sg.com.quantai.middleware.data.Crypto
+import sg.com.quantai.middleware.data.NewStrategy
+import sg.com.quantai.middleware.data.Strategy
 import sg.com.quantai.middleware.data.Stock
-import sg.com.quantai.middleware.data.enums.StrategyInterval
+import sg.com.quantai.middleware.data.Transaction
 import sg.com.quantai.middleware.data.enums.StrategyStatus
 import sg.com.quantai.middleware.requests.StrategyRequest
 import sg.com.quantai.middleware.requests.StrategyFileRequest
 import sg.com.quantai.middleware.requests.TransactionRequest
 import sg.com.quantai.middleware.repositories.NewStrategyRepository
 import sg.com.quantai.middleware.repositories.UserRepository
-import sg.com.quantai.middleware.repositories.CryptoRepository
-import sg.com.quantai.middleware.repositories.StockRepository
 import sg.com.quantai.middleware.repositories.StrategyRepository
-
-import org.bson.types.ObjectId
+import java.io.File
+import java.math.BigDecimal
+import java.nio.file.Files
+import java.nio.file.Paths
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.MediaType
-import org.springframework.web.bind.annotation.*
-import org.springframework.web.bind.annotation.CrossOrigin
-
-import org.springframework.web.multipart.MultipartFile
-import java.time.LocalDateTime
-import sg.com.quantai.middleware.data.Transaction
-import java.math.BigDecimal
-
-import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.MultipartBodyBuilder
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.client.RestTemplate
-import org.springframework.stereotype.Component
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.io.FileWriter
+import java.nio.charset.StandardCharsets
 
 @RestController
 @RequestMapping("/strategies")
 class StrategyController(
     private val strategiesRepository: StrategyRepository,
     private val newStrategiesRepository: NewStrategyRepository,
-    private val usersRepository: UserRepository,
-    private val cryptoRepository: CryptoRepository,
-    private val stockRepository: StockRepository,
+    private val usersRepository: UserRepository
 ) {
-    // @Value("\${quantai.temp.s3.path}") lateinit var tempDirectory: String
-    // @Value("\${quantai.persistence.s3.url}") lateinit var s3_url: String
-    private var tempDirectory: String = "temp"
-    private var s3_strategy_scripts_folder: String = "/strategy_scripts"
-    private var s3_url: String = "http://quant-ai-persistence-s3:8080/"
+    @Value("\${quantai.temp.s3.path}") var tempDirectory: String = "temp" //FIXME: Use value from properties instead of hardcoded solution
+    @Value("\${quantai.persistence.s3.url}") var s3Url: String = "http://quant-ai-persistence-s3:8080" //FIXME: Use value from properties instead of hardcoded solution
+    private var s3StrategyScriptsFolder: String = "/strategy_scripts"
     private val tempStoragePath = Paths.get(tempDirectory)
-    private var webClient: WebClient = WebClient.create()
     private val log = LoggerFactory.getLogger(StrategyController::class.java)
+
+    private fun s3WebClient() : WebClient {
+        return WebClient.builder().baseUrl(s3Url).build()
+    }
 
     // Retrieve all strategies
     @GetMapping("")
@@ -69,38 +60,24 @@ class StrategyController(
     // Retrieve all strategies from a user
     @GetMapping("/user/{user_id}")
     fun getAllStrategiesFromUser(
-        @PathVariable("user_id") user_id: String
-    ) : ResponseEntity<List<NewStrategy>> {
-        // try {
-            val user = usersRepository.findOneByUid(user_id)
-            var strategies = newStrategiesRepository.findByOwner(user)
-            strategies.forEach{
-                // Build HTTP Request Body
-                val builder = MultipartBodyBuilder()
-                builder.part("path", it.path)
+        @PathVariable("user_id") userId: String
+    ) : ResponseEntity<List<NewStrategy>>? {
+        val user = usersRepository.findOneByUid(userId)
+        val strategies = newStrategiesRepository.findByOwner(user)
 
-                // Send HTTP Post Request
-                val response =
-                        webClient!!
-                            .post()
-                            .uri(s3_url + "/read")
-                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                            .body(BodyInserters.fromMultipartData(builder.build()))
-                            .retrieve()
-                            .toEntity(String::class.java)
-                            .block()
+        strategies.forEach{
+            val filePath = it.path
+            val response = s3WebClient()
+                                .get()
+                                .uri("/read?path=$filePath")
+                                .retrieve()
+                                .toEntity(String::class.java)
+                                .block()
 
-                // Check if upload is successful
-                // if (response?.statusCode != HttpStatus.OK) {
-                    it.content = response!!.body
-                // } else {
-                //     it.content = "Error during loading. Contact the system admin."
-                // }
-            }
-            return ResponseEntity(strategies, HttpStatus.OK)
-        // } catch (e: Exception) {
-        //     return ResponseEntity(listOf<NewStrategy>(), HttpStatus.NOT_FOUND)
-        // }
+            it.content = response!!.body
+        }
+
+        return ResponseEntity(strategies, HttpStatus.OK)
     }
 
     @GetMapping("/user/{user_id}/{strategy_id}")
@@ -133,26 +110,26 @@ class StrategyController(
     @PostMapping("/file/{user_id}", consumes=[MediaType.ALL_VALUE])
     fun saveFile(
         @RequestBody request: StrategyFileRequest,
-        @PathVariable("user_id") user_id: String
+        @PathVariable("user_id") userId: String
     ) : ResponseEntity<NewStrategy> {
         // Log Post Request
         log.info("Received POST quest with file payload: {}", request)
 
         // Retrieve user information
-        val user = usersRepository.findOneByUid(user_id)
-        val uid = user?.uid
+        val user = usersRepository.findOneByUid(userId)
+        val uid = user.uid
 
         // Create temp dir, if it doesn't exist
         Files.createDirectories(tempStoragePath)
 
         // Prepare temp file
         val filenameTimestamp = "" + System.currentTimeMillis()
-        val filename = filenameTimestamp + ".py"
+        val filename = "$filenameTimestamp.py"
         val file = File("$tempStoragePath/$filename")
-        file.writeText(request.script)
+        file.writeText(request.content)
 
         // Prepare upload path
-        val path = "$s3_strategy_scripts_folder/$uid"
+        val path = "$s3StrategyScriptsFolder/$uid"
 
         // Build HTTP Request Body
         val builder = MultipartBodyBuilder()
@@ -161,15 +138,14 @@ class StrategyController(
                .header("Content-Disposition", "form-data; name=file; filename=$filename")
 
         // Send HTTP Post Request
-        val uploadResponse =
-                webClient!!
-                        .post()
-                        .uri(s3_url + "/upload")
-                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .body(BodyInserters.fromMultipartData(builder.build()))
-                        .retrieve()
-                        .toEntity(String::class.java)
-                        .block()
+        val uploadResponse = s3WebClient()
+                                .post()
+                                .uri("/upload")
+                                .contentType(MediaType.MULTIPART_FORM_DATA)
+                                .body(BodyInserters.fromMultipartData(builder.build()))
+                                .retrieve()
+                                .toEntity(String::class.java)
+                                .block()
 
         // Delete temp file
         file.delete()
@@ -181,7 +157,7 @@ class StrategyController(
 
         // Save file path information in the database
         val scriptPath = "$path/$filename"
-        var response: NewStrategy = newStrategiesRepository.save(
+        val response: NewStrategy = newStrategiesRepository.save(
             NewStrategy(
                 title = request.title,
                 uid = filenameTimestamp,
@@ -191,33 +167,6 @@ class StrategyController(
         )
 
         return ResponseEntity.ok(response)
-
-        // if (request.uid == null) { //FIXME: This is always false
-            // Create
-            
-        // }
-        //  else {
-        //     // Update
-        //     val strategy = strategiesRepository.findOneByUid(request.uid)
-        //     if (strategy == null) {
-        //         return ResponseEntity(HttpStatus.NOT_FOUND)
-        //     }
-        //     response = strategiesRepository.save(
-        //         Strategy(
-        //             title = request.title,
-        //             script = scriptPath,
-        //             interval = request.interval,
-        //             status = request.status,
-        //             transactionCount = strategy.transactionCount,
-        //             owner = user,
-        //             createdDate = strategy.createdDate,
-        //             updatedDate = LocalDateTime.now(),
-        //             uid = request.uid,
-        //             _id = strategy._id
-        //         )
-        //     )
-        // }
-        // return ResponseEntity.ok(response)
     }
 
     // Delete a strategy from a user (Could be "delete a strategy, but we will put the user as a security measure")

@@ -1,8 +1,12 @@
-build
-bin
-temp/
+# dir
 .idea/*
-.gradle
+.gradle/*
+.kotlin/*
+bin/*
+build/*
 gradle/*
+temp/*
+
+# files
 gradlew
 gradlew.bat

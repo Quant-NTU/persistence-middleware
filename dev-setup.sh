@@ -5,11 +5,11 @@ usage() {
     echo "-h, --help                    Display this help message"
     echo "-b, --build                   Compile and Build the current gradle project"
     echo "-c, --continuous              Compile, Build and Serve using local configs in a continuous way"
-    echo "-d, --stop                    Stop the continous built process"
+    echo "-d, --stop                    Stop the continuous built process"
     echo "-t, --test                    Compile, Build and Test the current gradle project"
     echo "-l, --local                   Compile, Build and Serve using local configs"
     echo "-s, --stag,  --staging        Compile, Build and Serve using stating configs"
-    echo "-p, --prod,  --production     Compile, Build and Serve using prodution configs"
+    echo "-p, --prod,  --production     Compile, Build and Serve using production configs"
 }
 
 handle_options() {
@@ -21,10 +21,12 @@ handle_options() {
             ;;
 
             -b | --build)
+                gradle clean
                 gradle build -x test
             ;;
 
             -c | --continuous)
+                gradle clean
                 gradle build -x test --continuous --quiet &
                 gradle bootRun --args='--spring.profiles.active=local'
             ;;
@@ -34,20 +36,24 @@ handle_options() {
             ;;
 
             -t | --test)
+                gradle clean
                 gradle test --continuous
             ;;
 
             -l | --local)
+                gradle clean
                 gradle build -x test
                 java -Dspring.profiles.active=local -jar /src/build/libs/quant-ai-persistence-middleware.jar
             ;;
 
             -s | --stag | --staging)
+                gradle clean
                 gradle build -x test
                 java -Dspring.profiles.active=stag -jar /src/build/libs/quant-ai-persistence-middleware.jar
             ;;
 
             -p | --prod | --production)
+                gradle clean
                 gradle build -x test
                 java -Dspring.profiles.active=prod -jar /src/build/libs/quant-ai-persistence-middleware.jar
             ;;
