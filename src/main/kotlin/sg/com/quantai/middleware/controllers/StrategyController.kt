@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
+import java.nio.charset.StandardCharsets
 
 @RestController
 @RequestMapping("/strategies")
@@ -65,24 +66,15 @@ class StrategyController(
         val strategies = newStrategiesRepository.findByOwner(user)
 
         strategies.forEach{
-            // Build HTTP Request Body
-            val builder = MultipartBodyBuilder()
-            builder.part("path", it.path)
             val filePath = it.path
+            val response = s3WebClient()
+                                .get()
+                                .uri("/read?path=$filePath")
+                                .retrieve()
+                                .toEntity(String::class.java)
+                                .block()
 
-            // Send HTTP Get Request
-            try {
-                val response = s3WebClient()
-                .get()
-                .uri("/read?path=$filePath")
-                    .retrieve()
-                    .toEntity(String::class.java)
-                    .block()
-
-                it.content = response!!.body
-            } catch (e: Exception) {
-                it.content = "WebClient error. Need to fix this."
-            }
+            it.content = response!!.body
         }
 
         return ResponseEntity(strategies, HttpStatus.OK)
@@ -134,7 +126,7 @@ class StrategyController(
         val filenameTimestamp = "" + System.currentTimeMillis()
         val filename = "$filenameTimestamp.py"
         val file = File("$tempStoragePath/$filename")
-        file.writeText(request.script)
+        file.writeText(request.content)
 
         // Prepare upload path
         val path = "$s3StrategyScriptsFolder/$uid"
