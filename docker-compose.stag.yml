@@ -21,7 +21,7 @@ services:
     build:
       context: .
       target: stag
-    ports: [10001:8080]
+    ports: [10001:10001]
     networks: [quant-ai-persistence-middleware, quant-ai-persistence-etl, quant-ai-mongo-db, quant-ai-mq]
 
 networks:
