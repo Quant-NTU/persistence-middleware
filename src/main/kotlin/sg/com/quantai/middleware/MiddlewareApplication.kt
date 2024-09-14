@@ -9,3 +9,4 @@ class MiddlewareApplication
 fun main(args: Array<String>) {
 	runApplication<MiddlewareApplication>(*args)
 }
+

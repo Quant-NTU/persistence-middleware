@@ -716,6 +716,13 @@ class UserController(
         return false
     }
 
+    // Test API Call to check if the API is working
+    @GetMapping("/test")
+    fun testAPICall(): ResponseEntity<String> {
+        return ResponseEntity.ok("API is working very well")
+    }
+
+
     // TODO
     // Create transactions -> SHOULD NOT EXIST. FUNCTIONALITY MUST BE ENTERED VIA THE TRANSACTION
     // CLASS
