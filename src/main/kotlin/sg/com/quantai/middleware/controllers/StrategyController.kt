@@ -172,17 +172,18 @@ class StrategyController(
     // Delete a strategy from a user (Could be "delete a strategy, but we will put the user as a security measure")
     @DeleteMapping("/user/{user_id}/{uid}")
     fun deleteStrategyFromUser(
-        @RequestBody request: StrategyRequest,
         @PathVariable("user_id") user_id: String,
         @PathVariable("uid") uid: String
     ) : ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(user_id)
-        val strategy = strategiesRepository.findOneByUid(uid)
+        val strategy = newStrategiesRepository.findOneByUid(uid)
         if (strategy == null) {
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
         if (strategy.owner.uid == user.uid) {
-            strategiesRepository.deleteByUid(strategy.uid)
+            newStrategiesRepository.deleteByUid(strategy.uid)
+            
+            return ResponseEntity.ok().body("Deleted strategy ${uid}")
         }
         return ResponseEntity.noContent().build()
     }
