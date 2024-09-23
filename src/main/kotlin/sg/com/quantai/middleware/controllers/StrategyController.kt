@@ -181,6 +181,18 @@ class StrategyController(
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
         if (strategy.owner.uid == user.uid) {
+            val strategyPath = strategy.path
+            val deleteResponse = s3WebClient()
+                            .delete()
+                            .uri("/delete?fileName=$strategyPath")
+                            .retrieve()
+                            .toEntity(String::class.java)
+                            .block()
+
+            if (deleteResponse?.statusCode != HttpStatus.OK) {
+                return ResponseEntity(deleteResponse!!.statusCode)
+            }
+            
             newStrategiesRepository.deleteByUid(strategy.uid)
             
             return ResponseEntity.ok().body("Deleted strategy ${uid}")
