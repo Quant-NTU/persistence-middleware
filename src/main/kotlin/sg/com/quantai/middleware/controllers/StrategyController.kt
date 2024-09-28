@@ -166,6 +166,8 @@ class StrategyController(
             )
         )
 
+        response.content = request.content
+
         return ResponseEntity.ok(response)
     }
 
@@ -180,6 +182,13 @@ class StrategyController(
         if (strategy == null) {
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
+
+        // Check if there is a backup strategy named uid.bak 
+        val backup: NewStrategy? = newStrategiesRepository.findOneByUid("$uid.bak")
+        if (backup != null) {
+            newStrategiesRepository.deleteByUid("$uid.bak")
+        }
+        
         if (strategy.owner.uid == user.uid) {
             val strategyPath = strategy.path
             val deleteResponse = s3WebClient()
@@ -192,7 +201,7 @@ class StrategyController(
             if (deleteResponse?.statusCode != HttpStatus.OK) {
                 return ResponseEntity(deleteResponse!!.statusCode)
             }
-            
+
             newStrategiesRepository.deleteByUid(strategy.uid)
             
             return ResponseEntity.ok().body("Deleted strategy ${uid}")
