@@ -25,3 +25,7 @@ The JSON response is automatically fed with the content of each Strategy Python 
 ### Updating a Strategy Script
 
 ### Deleting a Strategy Script
+
+By using the HTTP DELETE endpoint `/user/{user_id}/{uid}`, where `{user_id}` represents the logged user id, AND `{uid}` represents the uid of a script, the developer is able to delete a strategy owned by the user. The microservice first checks that the user owns the strategy and then deletes the respective backup script (by the name of `{uid}.bak`) for the script to be deleted.
+
+The JSON response is a HTTP response with content "Deleted strategy `{uid}`".
