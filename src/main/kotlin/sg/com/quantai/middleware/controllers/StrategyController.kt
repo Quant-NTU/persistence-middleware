@@ -42,7 +42,7 @@ class StrategyController(
 ) {
     @Value("\${quantai.temp.s3.path}") var tempDirectory: String = "temp" //FIXME: Use value from properties instead of hardcoded solution
     @Value("\${quantai.persistence.s3.url}") var s3Url: String = "http://quant-ai-persistence-s3:8080" //FIXME: Use value from properties instead of hardcoded solution
-    private var s3StrategyScriptsFolder: String = "/strategy_scripts"
+    private var s3StrategyScriptsFolder: String = "strategy_scripts"
     private val tempStoragePath = Paths.get(tempDirectory)
     private val log = LoggerFactory.getLogger(StrategyController::class.java)
 
@@ -69,7 +69,7 @@ class StrategyController(
             val filePath = it.path
             val response = s3WebClient()
                                 .get()
-                                .uri("/read?path=$filePath")
+                                .uri("?path=$filePath")
                                 .retrieve()
                                 .toEntity(String::class.java)
                                 .block()
@@ -140,7 +140,7 @@ class StrategyController(
         // Send HTTP Post Request
         val uploadResponse = s3WebClient()
                                 .post()
-                                .uri("/upload")
+                                .uri("")
                                 .contentType(MediaType.MULTIPART_FORM_DATA)
                                 .body(BodyInserters.fromMultipartData(builder.build()))
                                 .retrieve()
@@ -166,23 +166,45 @@ class StrategyController(
             )
         )
 
+        response.content = request.content
+
         return ResponseEntity.ok(response)
     }
 
     // Delete a strategy from a user (Could be "delete a strategy, but we will put the user as a security measure")
     @DeleteMapping("/user/{user_id}/{uid}")
     fun deleteStrategyFromUser(
-        @RequestBody request: StrategyRequest,
         @PathVariable("user_id") user_id: String,
         @PathVariable("uid") uid: String
     ) : ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(user_id)
-        val strategy = strategiesRepository.findOneByUid(uid)
+        val strategy = newStrategiesRepository.findOneByUid(uid)
         if (strategy == null) {
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
+
+        // Check if there is a backup strategy named uid.bak 
+        val backup: NewStrategy? = newStrategiesRepository.findOneByUid("$uid.bak")
+        if (backup != null) {
+            newStrategiesRepository.deleteByUid("$uid.bak")
+        }
+        
         if (strategy.owner.uid == user.uid) {
-            strategiesRepository.deleteByUid(strategy.uid)
+            val strategyPath = strategy.path
+            val deleteResponse = s3WebClient()
+                            .delete()
+                            .uri("?path=$strategyPath")
+                            .retrieve()
+                            .toEntity(String::class.java)
+                            .block()
+
+            if (deleteResponse?.statusCode != HttpStatus.OK) {
+                return ResponseEntity(deleteResponse!!.statusCode)
+            }
+
+            newStrategiesRepository.deleteByUid(strategy.uid)
+            
+            return ResponseEntity.ok().body("Deleted strategy ${uid}")
         }
         return ResponseEntity.noContent().build()
     }
