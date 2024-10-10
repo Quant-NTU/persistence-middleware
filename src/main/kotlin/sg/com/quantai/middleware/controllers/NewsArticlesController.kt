@@ -8,8 +8,8 @@ import org.springframework.beans.factory.annotation.Value
 import sg.com.quantai.middleware.exceptions.NewsHeadlinesException
 
 @RestController
-@RequestMapping("/news_headlines")
-class NewsHeadlinesController {
+@RequestMapping("/news_articles")
+class NewsArticlesController {
 
     @Value("\${quantai.etl.url}")
     private lateinit var etlBaseUrl: String
@@ -21,18 +21,18 @@ class NewsHeadlinesController {
             .build()
     }
 
-    @GetMapping("/bbc_transformed/all")
+    @GetMapping("/all")
     fun getTransformedNewsArticles(): Mono<ResponseEntity<Any>> {
         return getWebClient()
             .get()
-            .uri("/news_headlines/bbc/api/news_transformed")
+            .uri("/news_articles/api/all")
             .retrieve()
             .bodyToMono(Any::class.java)
             .map { articles ->
                 ResponseEntity.ok(articles)
             }
             .onErrorResume {
-                throw NewsHeadlinesException("Error fetching BBC news articles: ${it.message}")
+                throw NewsHeadlinesException("Error fetching news articles: ${it.message}")
             }
     }
 }
