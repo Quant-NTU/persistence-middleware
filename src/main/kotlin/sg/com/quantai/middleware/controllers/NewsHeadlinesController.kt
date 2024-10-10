@@ -5,35 +5,34 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 import org.springframework.beans.factory.annotation.Value
+import sg.com.quantai.middleware.exceptions.NewsHeadlinesException
 
 @RestController
-@RequestMapping("/bbcnews")
-class BbcNewsController {
+@RequestMapping("/news_headlines")
+class NewsHeadlinesController {
 
     @Value("\${quantai.etl.url}")
-    private lateinit var etlServiceBaseUrl: String
+    private lateinit var etlBaseUrl: String
 
-    private val webClient: WebClient by lazy {
-        WebClient.builder()
-            .baseUrl(etlServiceBaseUrl)
+    private fun getWebClient(): WebClient {
+        return WebClient.builder()
+            .baseUrl(etlBaseUrl)
             .codecs { it.defaultCodecs().maxInMemorySize(1024 * 1024 * 1024) }
             .build()
     }
 
-    @GetMapping("/transformed")
+    @GetMapping("/bbc_transformed/all")
     fun getTransformedNewsArticles(): Mono<ResponseEntity<Any>> {
-        val etlServiceUrl = "/api/transformed-bbc-news/all"
-
-        return webClient
+        return getWebClient()
             .get()
-            .uri(etlServiceUrl)
+            .uri("/news_headlines/bbc/api/news_transformed")
             .retrieve()
-            .bodyToMono(Any::class.java) // Handle dynamic response type
+            .bodyToMono(Any::class.java)
             .map { articles ->
                 ResponseEntity.ok(articles)
             }
             .onErrorResume {
-                Mono.just(ResponseEntity.status(500).body("Error fetching bbc news articles: ${it.message}"))
+                throw NewsHeadlinesException("Error fetching BBC news articles: ${it.message}")
             }
     }
 }
