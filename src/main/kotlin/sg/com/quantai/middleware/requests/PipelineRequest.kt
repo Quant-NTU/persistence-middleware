@@ -6,6 +6,6 @@ import sg.com.quantai.middleware.data.NewStrategy
 class PipelineRequest(
         val title: String,
         val description: String,
-        val : String,
+        val strategies_id: String,
         val portfolio_id: String,
 )
