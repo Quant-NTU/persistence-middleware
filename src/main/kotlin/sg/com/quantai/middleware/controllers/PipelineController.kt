@@ -76,7 +76,6 @@ class PipelineController(
     // Delete a pipeline
     @DeleteMapping("/user/{user_id}/{pipeline_id}")
     fun deletePipelineFromUser(
-        @RequestBody request: PipelineRequest,
         @PathVariable("user_id") user_id: String,
         @PathVariable("pipeline_id") pipeline_id: String
     ) : ResponseEntity<Any> {
