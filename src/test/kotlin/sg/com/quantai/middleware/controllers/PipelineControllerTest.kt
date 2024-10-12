@@ -323,6 +323,55 @@ constructor(
     }
 
     @Test
+    fun `should return strategies of pipeline with duplicate strategies in correct order`() {
+        val (password1, salt1) = hashAndSaltPassword("Password1")
+        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val userId = user.uid
+
+        val pipeline = saveOnePipeline(owner=user)
+        val pipelineId = pipeline.uid
+
+        val s1 = NewStrategy(
+            title = "Strategy new",
+            uid = "IDnew",
+            path = "Pathnew",
+            owner = user
+        )
+
+        val s2 = NewStrategy(
+            title = "Strategy new2",
+            uid = "IDnew2",
+            path = "Pathnew2",
+            owner = user
+        )
+
+        val strat_id = newStrategyRepository.save(s1).uid
+        val strat_id2 = newStrategyRepository.save(s2).uid
+        val combinedStratIds = "$strat_id,$strat_id2,$strat_id2,$strat_id"
+        val expectedList = listOf(s1, s2,s2,s1)
+
+        val pipelineRequest = preparePipelineRequest(strategies_id=combinedStratIds)
+
+        val updatedResponse =
+            restTemplate.exchange(
+                getRootUrl() + "/user/$userId/$pipelineId",
+                HttpMethod.PUT,
+                HttpEntity(pipelineRequest, HttpHeaders()),
+                Pipeline::class.java
+            )
+        val updatedPipeline = pipelineRepository.findOneByUid(pipelineId)
+
+        assertEquals(200, updatedResponse.statusCode.value())
+        assertEquals(pipelineId, updatedPipeline.uid) // Id same
+        assertEquals(pipeline.owner.uid,updatedPipeline.owner.uid) // Shouldn't allow change owner
+        assertEquals(pipeline.portfolio?.uid, updatedPipeline.portfolio?.uid) // Shouldn't allow change portfolio
+
+        assertEquals(pipelineRequest.title, updatedPipeline.title)
+        assertEquals(pipelineRequest.description, updatedPipeline.description)
+        assertEquals(expectedList.map { it.uid }, updatedPipeline.strategies?.map { it.uid })
+    }
+
+    @Test
     fun `should delete an existing pipeline`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
         val (password2, salt2) = hashAndSaltPassword("Password2")
