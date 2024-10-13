@@ -13,7 +13,7 @@ data class NewStrategy (
     // Database columns
     @Id val _id: ObjectId = ObjectId.get(), // document id, it changes when updated via upsert
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),
-    // Columns columns
+    // Columns
     val title: String,
     val path: String,
     // Timestamps columns
