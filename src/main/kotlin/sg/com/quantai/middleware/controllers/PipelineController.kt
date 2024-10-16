@@ -60,7 +60,11 @@ class PipelineController(
         @RequestBody request: PipelineRequest
     ): ResponseEntity<Pipeline> {
         val user = userRepository.findOneByUid(user_id)
-        val portfolio = portfolioRepository.findOneByUid(request.portfolio_id) ?: return ResponseEntity(HttpStatus.NOT_FOUND)
+
+        // Change after portfolio is refactored
+        val portfolios = portfolioRepository.findByOwner(user)
+        val portfolio = portfolios.first()
+
         val pipeline =
                 pipelineRepository.save(
                     Pipeline(
@@ -117,7 +121,6 @@ class PipelineController(
         val updatedPipeline = pipeline.copy(
             title = request.title ?: pipeline.title,
             description = request.description ?: pipeline.description,
-            // portfolio = request.portfolio ?: pipeline.portfolio, // not sure if portfolio can change
             strategies = strategies?: pipeline.strategies,
             updatedDate = LocalDateTime.now() // Update the timestamp
         )

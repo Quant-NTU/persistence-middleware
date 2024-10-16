@@ -94,23 +94,11 @@ constructor(
 
     private fun preparePipelineRequest(
         strategies_id: String = "",
-        portfolio_id:String = ""
     ) =
         PipelineRequest(
             title= "Updated Title",
             description= "Updated Description",
-            strategies_id = strategies_id,
-            portfolio_id = portfolio_id
-            // portfolio= portfolioRepository.save(
-            //     Portfolio(
-            //         symbol="Updated",
-            //         name="Updated",
-            //         quantity=BigDecimal(1),
-            //         price=BigDecimal(1.1),
-            //         platform="Updated",
-            //         owner = owner
-            //     )
-            // ) // not sure if portfolio can change
+            strategies_id = strategies_id
         )
 
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
@@ -240,7 +228,7 @@ constructor(
             )
         ).uid
 
-        val pipelineRequest = preparePipelineRequest(portfolio_id=p1)
+        val pipelineRequest = preparePipelineRequest()
 
         val response =
             restTemplate.exchange(
