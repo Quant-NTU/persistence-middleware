@@ -110,12 +110,23 @@ class PipelineController(
         }
 
         var strategies = emptyList<NewStrategy>()
+
         if (request.strategies_id.isNotBlank()) {
             // Split the comma-separated strategy_ids into a list
             val strategyIds = request.strategies_id.split(",").map { it.trim() }
+        
             // Fetch strategies from the repository based on the ids
-            strategies = strategyIds.mapNotNull{newStrategiesRepository.findOneByUid(it)}
-        }
+            strategies = strategyIds.mapNotNull { strategyId ->
+                val strategy = newStrategiesRepository.findOneByUid(strategyId)
+                if (strategy != null && strategy.owner?.uid == user.uid) {
+                    strategy
+                } else if (strategy?.owner?.uid != user.uid) {
+                    return ResponseEntity(HttpStatus.FORBIDDEN) // Handle unauthorized access
+                } else {
+                    null
+                }
+            }
+        }      
 
         // Update fields
         val updatedPipeline = pipeline.copy(
