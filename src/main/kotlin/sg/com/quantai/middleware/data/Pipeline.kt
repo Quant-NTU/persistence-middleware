@@ -21,5 +21,6 @@ data class Pipeline (
     @DBRef val owner: User,
     @DBRef val portfolio: Portfolio,
     @DBRef(lazy=true) val strategies: List<NewStrategy>? = emptyList<NewStrategy>(),
-    val description: String? = null
+    val description: String? = null,
+    val execution_method: String? = null
 ) 

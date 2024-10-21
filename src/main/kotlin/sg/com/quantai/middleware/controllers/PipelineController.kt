@@ -60,18 +60,15 @@ class PipelineController(
         @RequestBody request: PipelineRequest
     ): ResponseEntity<Pipeline> {
         val user = userRepository.findOneByUid(user_id)
-
-        // Change after portfolio is refactored
-        val portfolios = portfolioRepository.findByOwner(user)
-        val portfolio = portfolios.first()
-
+        val portfolio = portfolioRepository.findOneByUid(request.portfolio_id)
         val pipeline =
                 pipelineRepository.save(
                     Pipeline(
                         title = request.title,
                         owner = user,
                         description = request.description,
-                        portfolio = portfolio
+                        portfolio = portfolio,
+                        execution_method = request.execution_method,
                     )
                 )
         return ResponseEntity(pipeline, HttpStatus.CREATED)
@@ -133,6 +130,7 @@ class PipelineController(
             title = request.title ?: pipeline.title,
             description = request.description ?: pipeline.description,
             strategies = strategies?: pipeline.strategies,
+            execution_method = request.execution_method?: pipeline.execution_method,
             updatedDate = LocalDateTime.now() // Update the timestamp
         )
 

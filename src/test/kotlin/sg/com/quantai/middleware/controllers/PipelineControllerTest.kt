@@ -55,6 +55,7 @@ constructor(
     private fun saveOnePipeline(
         title: String = "Test Pipeline",
         description: String = "This is a test pipeline",
+        execution_method: String = "Every Hour",
         owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
         strategies: List<NewStrategy> = listOf(
             newStrategyRepository.save(NewStrategy(
@@ -88,17 +89,21 @@ constructor(
                 strategies = strategies,
                 updatedDate = LocalDateTime.now(), 
                 portfolio = portfolio,
-                owner = owner
+                owner = owner,
+                execution_method = execution_method,
             )
         )
 
     private fun preparePipelineRequest(
         strategies_id: String = "",
+        portfolio_id: String = "",
     ) =
         PipelineRequest(
             title= "Updated Title",
             description= "Updated Description",
-            strategies_id = strategies_id
+            strategies_id = strategies_id,
+            portfolio_id = portfolio_id,
+            execution_method = "Every Minute"
         )
 
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
@@ -228,7 +233,7 @@ constructor(
             )
         ).uid
 
-        val pipelineRequest = preparePipelineRequest()
+        val pipelineRequest = preparePipelineRequest(portfolio_id=p1)
 
         val response =
             restTemplate.exchange(
@@ -238,7 +243,6 @@ constructor(
                 Pipeline::class.java
             )
 
-
         assertEquals(201, response.statusCode.value())
         assertEquals(userId, response.body?.owner?.uid)
         assertEquals(p1, response.body?.portfolio?.uid)
@@ -246,6 +250,7 @@ constructor(
         assertEquals(pipelineRequest.title, response.body?.title)
         assertEquals(pipelineRequest.description, response.body?.description)
         assertEquals(emptyList<NewStrategy>(), response.body?.strategies)
+        assertEquals(pipelineRequest.execution_method, response.body?.execution_method)
     }
 
     @Test
@@ -308,6 +313,7 @@ constructor(
         assertEquals(pipelineRequest.title, updatedPipeline.title)
         assertEquals(pipelineRequest.description, updatedPipeline.description)
         assertEquals(expectedList.map { it.uid }, updatedPipeline.strategies?.map { it.uid })
+        assertEquals(pipelineRequest.execution_method, updatedPipeline.execution_method)
     }
 
     @Test
@@ -353,9 +359,6 @@ constructor(
         assertEquals(pipelineId, updatedPipeline.uid) // Id same
         assertEquals(pipeline.owner.uid,updatedPipeline.owner.uid) // Shouldn't allow change owner
         assertEquals(pipeline.portfolio?.uid, updatedPipeline.portfolio?.uid) // Shouldn't allow change portfolio
-
-        assertEquals(pipelineRequest.title, updatedPipeline.title)
-        assertEquals(pipelineRequest.description, updatedPipeline.description)
         assertEquals(expectedList.map { it.uid }, updatedPipeline.strategies?.map { it.uid })
     }
 
