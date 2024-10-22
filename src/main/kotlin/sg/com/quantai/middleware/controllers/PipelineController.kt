@@ -60,14 +60,14 @@ class PipelineController(
         @RequestBody request: PipelineRequest
     ): ResponseEntity<Pipeline> {
         val user = userRepository.findOneByUid(user_id)
-        val portfolio = portfolioRepository.findOneByUid(request.portfolio_id)
+        // val portfolio = portfolioRepository.findOneByUid(request.portfolio_id)
         val pipeline =
                 pipelineRepository.save(
                     Pipeline(
                         title = request.title,
                         owner = user,
                         description = request.description,
-                        portfolio = portfolio,
+                        // portfolio = portfolio,
                         execution_method = request.execution_method,
                     )
                 )
