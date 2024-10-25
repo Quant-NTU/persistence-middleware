@@ -71,16 +71,17 @@ constructor(
                 owner = owner
             ))
         ),
-        portfolio: Portfolio = portfolioRepository.save(
-            Portfolio(
-                symbol="STOCK1",
-                name="Stock 1",
-                quantity=BigDecimal(1),
-                price=BigDecimal(1.1),
-                platform="Platform",
-                owner = owner
-            )
-        )
+        portfolio: String = "",
+        // portfolio: Portfolio = portfolioRepository.save(
+        //     Portfolio(
+        //         symbol="STOCK1",
+        //         name="Stock 1",
+        //         quantity=BigDecimal(1),
+        //         price=BigDecimal(1.1),
+        //         platform="Platform",
+        //         owner = owner
+        //     )
+        // )
     )=  
         pipelineRepository.save(
             Pipeline(
@@ -88,7 +89,7 @@ constructor(
                 description = description,
                 strategies = strategies,
                 updatedDate = LocalDateTime.now(), 
-                portfolio = portfolio,
+                // portfolio = portfolio,
                 owner = owner,
                 execution_method = execution_method,
             )
@@ -206,13 +207,14 @@ constructor(
                 owner = user
             )
         )
-        val savedId = saveOnePipeline(portfolio=portfolio1,owner=user).uid
+        // val savedId = saveOnePipeline(portfolio=portfolio1,owner=user).uid
+        val savedId = saveOnePipeline(owner=user).uid
 
         val response =
                 restTemplate.getForEntity(getRootUrl() + "/user/$userId/$savedId", Pipeline::class.java)
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
-        assertEquals(portfolio1.uid, response.body?.portfolio?.uid)
+        // assertEquals(portfolio1.uid, response.body?.portfolio?.uid)
         assertEquals(user.uid, response.body?.owner?.uid)
     }
 
@@ -233,7 +235,8 @@ constructor(
             )
         ).uid
 
-        val pipelineRequest = preparePipelineRequest(portfolio_id=p1)
+        // val pipelineRequest = preparePipelineRequest(portfolio_id=p1)
+        val pipelineRequest = preparePipelineRequest()
 
         val response =
             restTemplate.exchange(
@@ -245,7 +248,7 @@ constructor(
 
         assertEquals(201, response.statusCode.value())
         assertEquals(userId, response.body?.owner?.uid)
-        assertEquals(p1, response.body?.portfolio?.uid)
+        // assertEquals(p1, response.body?.portfolio?.uid)
 
         assertEquals(pipelineRequest.title, response.body?.title)
         assertEquals(pipelineRequest.description, response.body?.description)
@@ -278,7 +281,10 @@ constructor(
 
         val strat_id = newStrategyRepository.save(s1).uid
         val strat_id2 = newStrategyRepository.save(s2).uid
-        val combinedStratIds = "$strat_id,$strat_id2"
+        val combinedStratIds = """[
+        {"reactFlowId": "strategy-0", "strategyId":"$strat_id","prev":null,"next":"strategy-1"},
+        {"reactFlowId": "strategy-1","strategyId":"$strat_id2","prev":"strategy-0","next":null},
+        ]"""
         val expectedList = listOf(s1, s2)
 
         val pipelineRequest = preparePipelineRequest(strategies_id=combinedStratIds)
@@ -308,7 +314,7 @@ constructor(
         assertEquals(200, updatedResponse.statusCode.value())
         assertEquals(pipelineId, updatedPipeline.uid) // Id same
         assertEquals(pipeline.owner.uid,updatedPipeline.owner.uid) // Shouldn't allow change owner
-        assertEquals(pipeline.portfolio?.uid, updatedPipeline.portfolio?.uid) // Shouldn't allow change portfolio
+        // assertEquals(pipeline.portfolio?.uid, updatedPipeline.portfolio?.uid) // Shouldn't allow change portfolio
 
         assertEquals(pipelineRequest.title, updatedPipeline.title)
         assertEquals(pipelineRequest.description, updatedPipeline.description)
@@ -341,7 +347,12 @@ constructor(
 
         val strat_id = newStrategyRepository.save(s1).uid
         val strat_id2 = newStrategyRepository.save(s2).uid
-        val combinedStratIds = "$strat_id,$strat_id2,$strat_id2,$strat_id"
+        val combinedStratIds = """[
+        {"reactFlowId": "strategy-0", "strategyId":"$strat_id","prev":null,"next":"strategy-1"},
+        {"reactFlowId": "strategy-1","strategyId":"$strat_id2","prev":"strategy-0","next":"strategy-2"},
+        {"reactFlowId": "strategy-2","strategyId":"$strat_id2","prev":"strategy-1","next":"strategy-3"},
+        {"reactFlowId": "strategy-3","strategyId":"$strat_id","prev":"strategy-2","next":null},
+        ]"""
         val expectedList = listOf(s1, s2,s2,s1)
 
         val pipelineRequest = preparePipelineRequest(strategies_id=combinedStratIds)
@@ -358,7 +369,7 @@ constructor(
         assertEquals(200, updatedResponse.statusCode.value())
         assertEquals(pipelineId, updatedPipeline.uid) // Id same
         assertEquals(pipeline.owner.uid,updatedPipeline.owner.uid) // Shouldn't allow change owner
-        assertEquals(pipeline.portfolio?.uid, updatedPipeline.portfolio?.uid) // Shouldn't allow change portfolio
+        // assertEquals(pipeline.portfolio?.uid, updatedPipeline.portfolio?.uid) // Shouldn't allow change portfolio
         assertEquals(expectedList.map { it.uid }, updatedPipeline.strategies?.map { it.uid })
     }
 

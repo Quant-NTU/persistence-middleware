@@ -61,6 +61,29 @@ class PipelineController(
     ): ResponseEntity<Pipeline> {
         val user = userRepository.findOneByUid(user_id)
         // val portfolio = portfolioRepository.findOneByUid(request.portfolio_id)
+
+        var strategies = emptyList<NewStrategy>()
+
+        if (request.strategies_id.isNotBlank()) {
+            // Regular expression to match `strategyId` values
+            val regex = """strategyId"\s*:\s*"([^"]+)""".toRegex()
+
+            // Find all matches and extract the values
+            val strategyIds = regex.findAll(request.strategies_id).map { it.groupValues[1] }.toList()
+        
+            // Fetch strategies from the repository based on the ids
+            strategies = strategyIds.mapNotNull { strategyId ->
+                val strategy = newStrategiesRepository.findOneByUid(strategyId)
+                if (strategy != null && strategy.owner?.uid == user.uid) {
+                    strategy
+                } else if (strategy?.owner?.uid != user.uid) {
+                    return ResponseEntity(HttpStatus.FORBIDDEN) // Handle unauthorized access
+                } else {
+                    null
+                }
+            }
+        }      
+
         val pipeline =
                 pipelineRepository.save(
                     Pipeline(
@@ -68,7 +91,9 @@ class PipelineController(
                         owner = user,
                         description = request.description,
                         // portfolio = portfolio,
+                        strategies = strategies,
                         execution_method = request.execution_method,
+                        createdDate = LocalDateTime.now() // Update the timestamp
                     )
                 )
         return ResponseEntity(pipeline, HttpStatus.CREATED)
@@ -109,8 +134,11 @@ class PipelineController(
         var strategies = emptyList<NewStrategy>()
 
         if (request.strategies_id.isNotBlank()) {
-            // Split the comma-separated strategy_ids into a list
-            val strategyIds = request.strategies_id.split(",").map { it.trim() }
+            // Regular expression to match `strategyId` values
+            val regex = """strategyId"\s*:\s*"([^"]+)""".toRegex()
+
+            // Find all matches and extract the values
+            val strategyIds = regex.findAll(request.strategies_id).map { it.groupValues[1] }.toList()
         
             // Fetch strategies from the repository based on the ids
             strategies = strategyIds.mapNotNull { strategyId ->
