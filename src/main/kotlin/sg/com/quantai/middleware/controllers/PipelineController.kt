@@ -113,7 +113,7 @@ class PipelineController(
         else{
             return ResponseEntity(HttpStatus.FORBIDDEN)
         }
-        return ResponseEntity.noContent().build()
+        return ResponseEntity.ok().body("Deleted pipeline ${uid}")
     }
 
     // Update a pipeline
