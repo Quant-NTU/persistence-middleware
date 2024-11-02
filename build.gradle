@@ -51,6 +51,8 @@ dependencies {
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("javax.mail:mail:1.4.7")
     implementation("org.zeromq:jeromq:0.5.0")
+    implementation("io.springfox:springfox-swagger2:2.7.0")
+    implementation("io.springfox:springfox-swagger-ui:2.7.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") { exclude group: "org.junit.vintage", module: "junit-vintage-engine" }
     testImplementation("de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring30x:4.11.0")

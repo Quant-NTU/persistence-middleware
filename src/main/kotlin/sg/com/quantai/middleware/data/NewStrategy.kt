@@ -13,11 +13,9 @@ data class NewStrategy(
     // Database columns
     @Id val _id: ObjectId = ObjectId.get(), // document id, it changes when updated via upsert
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),
-
-    // Columns columns
-    var title: String,  // Changed from val to var
-    var path: String,   // Changed from val to var
-
+    // Columns
+    var title: String,
+    var path: String,
     // Timestamps columns
     val createdDate: LocalDateTime = LocalDateTime.now(),
     var updatedDate: LocalDateTime = LocalDateTime.now(),  // Changed from val to var
