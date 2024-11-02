@@ -1,5 +1,6 @@
 package sg.com.quantai.middleware.controllers
 
+import jakarta.servlet.http.HttpServletRequest
 import sg.com.quantai.middleware.data.Crypto
 import sg.com.quantai.middleware.data.NewStrategy
 import sg.com.quantai.middleware.data.Strategy
@@ -61,19 +62,32 @@ class StrategyController(
     // Retrieve all strategies from a user
     @GetMapping("/user/{user_id}")
     fun getAllStrategiesFromUser(
-        @PathVariable("user_id") userId: String
+        @PathVariable("user_id") userId: String,
+        request: HttpServletRequest
     ) : ResponseEntity<List<NewStrategy>>? {
         val user = usersRepository.findOneByUid(userId)
         val strategies = newStrategiesRepository.findByOwner(user)
 
         strategies.forEach{
-            val filePath = it.path
+            val filePath = it.path // Assuming `script` represents the file path in S3
+            val strategyName = it.title
+            val strategyUid = it.uid
+
+            // Call to S3 service with additional logging parameters
             val response = s3WebClient()
-                                .get()
-                                .uri("?path=$filePath")
-                                .retrieve()
-                                .toEntity(String::class.java)
-                                .block()
+                .get()
+                .uri { builder ->
+                    builder
+                        .path("/") // Calls the root URL as per @GetMapping("")
+                        .queryParam("path", filePath)
+                        .queryParam("userId", userId)
+                        .queryParam("strategyName", strategyName)
+                        .build()
+                }
+                .header("X-User-IP", request.remoteAddr) // Passing the IP address in the header
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
 
             it.content = response!!.body
         }
