@@ -108,71 +108,6 @@ class StrategyController(
         return ResponseEntity.ok(countMap)
     }
 
-    fun renameS3File(sourcePath: String, destinationPath: String, fileName: String): Boolean {
-        // Step 1: Check if the file exists at the source path (GET)
-        val checkFileResponse = s3WebClient()
-            .get()
-            .uri("?path=$sourcePath")
-            .retrieve()
-            .toEntity(String::class.java)
-            .block()
-
-        if (checkFileResponse?.statusCode != HttpStatus.OK) {
-            log.error("File not found at source path: $sourcePath")
-            return false // File doesn't exist, can't proceed with renaming
-        }
-
-        log.info("File exists at source path: $sourcePath, proceeding with rename")
-
-        // Step 2: Copy the file to the new destination (POST)
-        val copyBuilder = MultipartBodyBuilder()
-        copyBuilder.part("source", sourcePath)
-        copyBuilder.part("destination", destinationPath)
-
-        val tempFile = File("$tempStoragePath/$fileName")
-        tempFile.writeText(checkFileResponse.body.toString())
-
-        val builder = MultipartBodyBuilder()
-        builder.part("path", destinationPath)
-        builder.part("file", File("$tempStoragePath/$fileName").readBytes())
-            .header("Content-Disposition", "form-data; name=file; filename=$fileName")
-
-        // Send HTTP Post Request
-        val uploadResponse = s3WebClient()
-            .post()
-            .uri("")
-            .contentType(MediaType.MULTIPART_FORM_DATA)
-            .body(BodyInserters.fromMultipartData(builder.build()))
-            .retrieve()
-            .toEntity(String::class.java)
-            .block()
-
-        tempFile.delete()
-
-        if (uploadResponse?.statusCode != HttpStatus.OK) {
-            log.error("Failed to copy file to destination: $destinationPath")
-            return false // Copy failed, can't proceed with deleting the original file
-        }
-
-        log.info("File successfully copied to destination: $destinationPath")
-
-        // Step 3: Delete the original file (DELETE)
-        val deleteResponse = s3WebClient()
-            .delete()
-            .uri("?path=$sourcePath")
-            .retrieve()
-            .toEntity(String::class.java)
-            .block()
-
-        if (deleteResponse?.statusCode != HttpStatus.OK) {
-            log.error("Failed to delete the original file at: $sourcePath")
-            return false // Deletion failed, rename operation incomplete
-        }
-
-        log.info("Original file successfully deleted at: $destinationPath")
-        return true // Rename operation was successful
-    }
-
     @PostMapping("/file/{user_id}", consumes = [MediaType.ALL_VALUE])
     fun saveFile(
         @RequestBody request: StrategyFileRequest,
@@ -205,9 +140,19 @@ class StrategyController(
             val backupFilePath = "$s3StrategyScriptsFolder/$uid/${filename}.bak"
 
             // Rename the original file to a .bak file in S3
-            val renameSuccess = renameS3File(originalFilePath, backupFilePath, filename)
+            val renameResponse = s3WebClient()
+                .put()
+                .uri { builder ->
+                    builder.path("/rename")
+                        .queryParam("currentPath", originalFilePath)
+                        .queryParam("newPath", backupFilePath)
+                        .build()
+                }
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
 
-            if (!renameSuccess) {
+            if (renameResponse?.statusCode != HttpStatus.OK) {
                 log.error("Failed to back up the original file: $originalFilePath to $backupFilePath")
                 return ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR)
             }
@@ -237,7 +182,17 @@ class StrategyController(
             // Check if the upload was successful
             if (uploadResponse?.statusCode != HttpStatus.OK) {
                 log.error("Upload failed, restoring backup file")
-                renameS3File(backupFilePath, originalFilePath, filename) // Restore the backup if upload fails
+                s3WebClient()
+                    .put()
+                    .uri { builder ->
+                        builder.path("/rename")
+                            .queryParam("currentPath", originalFilePath)
+                            .queryParam("newPath", backupFilePath)
+                            .build()
+                    }
+                    .retrieve()
+                    .toEntity(String::class.java)
+                    .block()
                 return ResponseEntity(uploadResponse!!.statusCode)
             }
 
