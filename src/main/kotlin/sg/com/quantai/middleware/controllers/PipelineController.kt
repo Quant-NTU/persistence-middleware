@@ -92,7 +92,6 @@ class PipelineController(
                         description = request.description,
                         // portfolio = portfolio,
                         strategies = strategies,
-                        execution_method = request.execution_method,
                         createdDate = LocalDateTime.now() // Update the timestamp
                     )
                 )
@@ -158,7 +157,6 @@ class PipelineController(
             title = request.title ?: pipeline.title,
             description = request.description ?: pipeline.description,
             strategies = strategies?: pipeline.strategies,
-            execution_method = request.execution_method?: pipeline.execution_method,
             updatedDate = LocalDateTime.now() // Update the timestamp
         )
 

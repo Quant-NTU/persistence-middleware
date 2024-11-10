@@ -5,5 +5,4 @@ class PipelineRequest(
         val description: String,
         val strategies_id: String,
         val portfolio_id: String,
-        val execution_method: String,
 )

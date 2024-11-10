@@ -3,11 +3,9 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.Pipeline
 import sg.com.quantai.middleware.data.NewStrategy
-import sg.com.quantai.middleware.data.Portfolio
 import sg.com.quantai.middleware.repositories.UserRepository
 import sg.com.quantai.middleware.repositories.PipelineRepository
 import sg.com.quantai.middleware.repositories.NewStrategyRepository
-import sg.com.quantai.middleware.repositories.PortfolioRepository
 import sg.com.quantai.middleware.requests.PipelineRequest
 
 import java.math.BigDecimal
@@ -36,7 +34,6 @@ class PipelineControllerTest
 constructor(
     private val pipelineRepository: PipelineRepository,
     private val newStrategyRepository: NewStrategyRepository,
-    private val portfolioRepository: PortfolioRepository,
     private val userRepository: UserRepository,
     private val restTemplate: TestRestTemplate
 ) {
@@ -46,7 +43,6 @@ constructor(
     fun setUp() {
         pipelineRepository.deleteAll()
         newStrategyRepository.deleteAll()
-        portfolioRepository.deleteAll()
         userRepository.deleteAll()
     }
 
@@ -55,7 +51,6 @@ constructor(
     private fun saveOnePipeline(
         title: String = "Test Pipeline",
         description: String = "This is a test pipeline",
-        execution_method: String = "Every Hour",
         owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
         strategies: List<NewStrategy> = listOf(
             newStrategyRepository.save(NewStrategy(
@@ -91,7 +86,6 @@ constructor(
                 updatedDate = LocalDateTime.now(), 
                 // portfolio = portfolio,
                 owner = owner,
-                execution_method = execution_method,
             )
         )
 
@@ -104,7 +98,6 @@ constructor(
             description= "Updated Description",
             strategies_id = strategies_id,
             portfolio_id = portfolio_id,
-            execution_method = "Every Minute"
         )
 
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
@@ -253,7 +246,6 @@ constructor(
         assertEquals(pipelineRequest.title, response.body?.title)
         assertEquals(pipelineRequest.description, response.body?.description)
         assertEquals(emptyList<NewStrategy>(), response.body?.strategies)
-        assertEquals(pipelineRequest.execution_method, response.body?.execution_method)
     }
 
     @Test
@@ -319,7 +311,6 @@ constructor(
         assertEquals(pipelineRequest.title, updatedPipeline.title)
         assertEquals(pipelineRequest.description, updatedPipeline.description)
         assertEquals(expectedList.map { it.uid }, updatedPipeline.strategies?.map { it.uid })
-        assertEquals(pipelineRequest.execution_method, updatedPipeline.execution_method)
     }
 
     @Test
@@ -393,13 +384,15 @@ constructor(
         assertEquals(1, response.body?.size)
 
         // Delete pipeline1_1 for user 1
-        restTemplate.exchange(
-                getRootUrl() + "/user/$user1Id/$pipeline1_1_Id",
-                HttpMethod.DELETE,
-                HttpEntity(null, HttpHeaders()),
-                ResponseEntity::class.java
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/user/$user1Id/$pipeline1_1_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
         )
 
+        assertEquals("Deleted pipeline $pipeline1_1_Id", deleteResponse1.body)
+    
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
 
@@ -407,13 +400,15 @@ constructor(
         assertEquals(1, response.body?.size)
 
         // Delete pipeline2_1 for user 2
-        restTemplate.exchange(
-                getRootUrl() + "/user/$user2Id/$pipeline2_1_Id",
-                HttpMethod.DELETE,
-                HttpEntity(null, HttpHeaders()),
-                ResponseEntity::class.java
+        val deleteResponse2 = restTemplate.exchange(
+            getRootUrl() + "/user/$user2Id/$pipeline2_1_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
         )
 
+        assertEquals("Deleted pipeline $pipeline2_1_Id", deleteResponse2.body)
+    
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
 
@@ -421,13 +416,14 @@ constructor(
         assertEquals(0, response.body?.size)
 
         // Delete pipeline1_2 for user 1
-        restTemplate.exchange(
-                getRootUrl() + "/user/$user1Id/$pipeline1_2_Id",
-                HttpMethod.DELETE,
-                HttpEntity(null, HttpHeaders()),
-                ResponseEntity::class.java
+        val deleteResponse3 = restTemplate.exchange(
+            getRootUrl() + "/user/$user1Id/$pipeline1_2_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
         )
-
+        assertEquals("Deleted pipeline $pipeline1_2_Id", deleteResponse3.body)
+    
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(0, response.body?.size)
 
