@@ -190,16 +190,16 @@ constructor(
 
         saveOnePipeline(owner=user)
 
-        val portfolio1 = portfolioRepository.save(
-            Portfolio(
-                symbol="STOCK2",
-                name="Stock 2",
-                quantity=BigDecimal(1),
-                price=BigDecimal(1.1),
-                platform="Platform2",
-                owner = user
-            )
-        )
+        // val portfolio1 = portfolioRepository.save(
+        //     Portfolio(
+        //         symbol="STOCK2",
+        //         name="Stock 2",
+        //         quantity=BigDecimal(1),
+        //         price=BigDecimal(1.1),
+        //         platform="Platform2",
+        //         owner = user
+        //     )
+        // )
         // val savedId = saveOnePipeline(portfolio=portfolio1,owner=user).uid
         val savedId = saveOnePipeline(owner=user).uid
 
@@ -217,16 +217,16 @@ constructor(
         val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
         val userId = user.uid
 
-        val p1 = portfolioRepository.save(
-            Portfolio(
-                symbol="STOCK2",
-                name="Stock 2",
-                quantity=BigDecimal(1),
-                price=BigDecimal(1.1),
-                platform="Platform2",
-                owner = user
-            )
-        ).uid
+        // val p1 = portfolioRepository.save(
+        //     Portfolio(
+        //         symbol="STOCK2",
+        //         name="Stock 2",
+        //         quantity=BigDecimal(1),
+        //         price=BigDecimal(1.1),
+        //         platform="Platform2",
+        //         owner = user
+        //     )
+        // ).uid
 
         // val pipelineRequest = preparePipelineRequest(portfolio_id=p1)
         val pipelineRequest = preparePipelineRequest()

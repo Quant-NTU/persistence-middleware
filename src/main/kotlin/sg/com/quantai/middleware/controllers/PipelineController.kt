@@ -28,14 +28,12 @@ class PipelineController(
 ) {
     private val log = LoggerFactory.getLogger(PipelineController::class.java)
 
-    // Retrieve all pipelines
     @GetMapping("")
     fun getAllPipelines(): ResponseEntity<List<Pipeline>> {
         val pipeline = pipelineRepository.findAll()
         return ResponseEntity.ok(pipeline)
     }
 
-    // Retrieve all pipelines from a user
     @GetMapping("/user/{user_id}")
     fun getUserPipelines( @PathVariable("user_id") userId: String): ResponseEntity<List<Pipeline>> {
         val user = userRepository.findOneByUid(userId)
@@ -43,7 +41,6 @@ class PipelineController(
         return ResponseEntity.ok(userPipelines)
     }
 
-    // Retrieve one pipeline from a user
     @GetMapping("/user/{user_id}/{pipeline_id}")
     fun getOnePipelineFromUser(
         @PathVariable("user_id") user_id: String,
@@ -53,7 +50,6 @@ class PipelineController(
         return ResponseEntity.ok(pipeline)
     }
 
-    // Create Pipeline
     @PostMapping("/{user_id}")
     fun createPipeline(
         @PathVariable("user_id") user_id: String,
@@ -65,19 +61,15 @@ class PipelineController(
         var strategies = emptyList<NewStrategy>()
 
         if (request.strategies_id.isNotBlank()) {
-            // Regular expression to match `strategyId` values
             val regex = """strategyId"\s*:\s*"([^"]+)""".toRegex()
-
-            // Find all matches and extract the values
             val strategyIds = regex.findAll(request.strategies_id).map { it.groupValues[1] }.toList()
         
-            // Fetch strategies from the repository based on the ids
             strategies = strategyIds.mapNotNull { strategyId ->
                 val strategy = newStrategiesRepository.findOneByUid(strategyId)
                 if (strategy != null && strategy.owner?.uid == user.uid) {
                     strategy
                 } else if (strategy?.owner?.uid != user.uid) {
-                    return ResponseEntity(HttpStatus.FORBIDDEN) // Handle unauthorized access
+                    return ResponseEntity(HttpStatus.FORBIDDEN)
                 } else {
                     null
                 }
@@ -92,13 +84,12 @@ class PipelineController(
                         description = request.description,
                         // portfolio = portfolio,
                         strategies = strategies,
-                        createdDate = LocalDateTime.now() // Update the timestamp
+                        createdDate = LocalDateTime.now()
                     )
                 )
         return ResponseEntity(pipeline, HttpStatus.CREATED)
     }
 
-    // Delete a pipeline
     @DeleteMapping("/user/{user_id}/{pipeline_id}")
     fun deletePipelineFromUser(
         @PathVariable("user_id") user_id: String,
@@ -115,7 +106,6 @@ class PipelineController(
         return ResponseEntity.ok().body("Deleted pipeline ${pipeline_id}")
     }
 
-    // Update a pipeline
     @PutMapping("/user/{user_id}/{pipeline_id}")
     fun updatePipeline(
         @PathVariable("user_id") user_id: String,
@@ -125,7 +115,6 @@ class PipelineController(
         val user = userRepository.findOneByUid(user_id)
         val pipeline = pipelineRepository.findOneByUid(pipeline_id)
 
-        // Check if the pipeline belongs to the user
         if (pipeline.owner.uid != user.uid) {
             return ResponseEntity(HttpStatus.FORBIDDEN)
         }
@@ -133,34 +122,27 @@ class PipelineController(
         var strategies = emptyList<NewStrategy>()
 
         if (request.strategies_id.isNotBlank()) {
-            // Regular expression to match `strategyId` values
             val regex = """strategyId"\s*:\s*"([^"]+)""".toRegex()
-
-            // Find all matches and extract the values
             val strategyIds = regex.findAll(request.strategies_id).map { it.groupValues[1] }.toList()
-        
-            // Fetch strategies from the repository based on the ids
             strategies = strategyIds.mapNotNull { strategyId ->
                 val strategy = newStrategiesRepository.findOneByUid(strategyId)
                 if (strategy != null && strategy.owner?.uid == user.uid) {
                     strategy
                 } else if (strategy?.owner?.uid != user.uid) {
-                    return ResponseEntity(HttpStatus.FORBIDDEN) // Handle unauthorized access
+                    return ResponseEntity(HttpStatus.FORBIDDEN)
                 } else {
                     null
                 }
             }
         }      
 
-        // Update fields
         val updatedPipeline = pipeline.copy(
             title = request.title ?: pipeline.title,
             description = request.description ?: pipeline.description,
             strategies = strategies?: pipeline.strategies,
-            updatedDate = LocalDateTime.now() // Update the timestamp
+            updatedDate = LocalDateTime.now()
         )
 
-        // Save the updated pipeline to the repository
         val savedPipeline = pipelineRepository.save(updatedPipeline)
 
         return ResponseEntity.ok(savedPipeline)
