@@ -37,4 +37,5 @@ data class User (
         // Relationships columns
         @DBRef(lazy=true) val transactions: List<Transaction> = emptyList<Transaction>(),
         @DBRef(lazy=true) val strategies: List<NewStrategy> = emptyList<NewStrategy>(),
+        @DBRef(lazy=true) val pipelines: List<Pipeline> = emptyList<Pipeline>(),
 )
