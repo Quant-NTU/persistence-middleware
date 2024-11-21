@@ -24,7 +24,7 @@ The JSON response is automatically fed with the content of each Pipeline.
 By using the HTTP GET endpoint `pipeline/user/{user_id}/{pipeline_id}`, where `{user_id}` represents the logged user id and `{pipeline_id}` represents a pipeline id, the developer is able to retrieve the details of the selected pipeline in a JSON format.
 
 ### Updating a Pipeline
-The HTTP PUT endpoint pipeline/user/{user_id}/{pipeline_id} allows the developer to update the details of the selected pipeline. The {user_id} represents the logged-in user ID, and {pipeline_id} represents the pipeline ID. The updated pipeline details should be sent in the request body in JSON format. 
+The HTTP PUT endpoint `pipeline/user/{user_id}/{pipeline_id}` allows the developer to update the details of the selected pipeline. The `{user_id}` represents the logged-in user ID, and `{pipeline_id}` represents the pipeline ID. The updated pipeline details should be sent in the request body in JSON format. 
 
 Upon successful update, a HTTP response with the status `HttpStatus.OK` (200) is returned, and the updated pipeline is included in the response body as a JSON object.
 
