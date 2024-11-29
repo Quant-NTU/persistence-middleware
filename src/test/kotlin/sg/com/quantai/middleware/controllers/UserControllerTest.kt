@@ -1,10 +1,9 @@
 package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.data.AccountInfo
 import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
 import sg.com.quantai.middleware.requests.*
-import sg.com.quantai.middleware.repositories.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -32,9 +31,9 @@ class UserControllerTest
 
 @Autowired
 constructor(
-        private val userRepository: UserRepository,
-        private val emailService: EmailServiceImpl,
-        private val restTemplate: TestRestTemplate,
+    private val userRepository: UserRepository,
+    private val emailService: EmailServiceImpl,
+    private val restTemplate: TestRestTemplate,
 ) {
 
     private val defaultUserId = ObjectId.get()

@@ -1,8 +1,7 @@
-package sg.com.quantai.middleware.repositories
+package sg.com.quantai.middleware.repositories.mongo
 
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.Portfolio
-import org.bson.types.ObjectId
 import org.springframework.data.mongodb.repository.MongoRepository
 
 interface PortfolioRepository : MongoRepository<Portfolio, String> {

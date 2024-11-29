@@ -1,9 +1,8 @@
 package sg.com.quantai.middleware.controllers
 
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.repositories.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.requests.AuthenticationRequest
 import sg.com.quantai.middleware.requests.LoginRequest
 import sg.com.quantai.middleware.requests.NameEmailRequest
