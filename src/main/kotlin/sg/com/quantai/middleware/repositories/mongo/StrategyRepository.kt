@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.repositories
+package sg.com.quantai.middleware.repositories.mongo
 
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.Strategy

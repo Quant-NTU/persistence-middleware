@@ -1,8 +1,7 @@
-package sg.com.quantai.middleware.repositories
+package sg.com.quantai.middleware.repositories.mongo
 
 import sg.com.quantai.middleware.data.AccountInfo
 import sg.com.quantai.middleware.data.User
-import org.bson.types.ObjectId
 import org.springframework.data.mongodb.repository.MongoRepository
 
 interface AccountInfoRepository : MongoRepository<AccountInfo, String> {

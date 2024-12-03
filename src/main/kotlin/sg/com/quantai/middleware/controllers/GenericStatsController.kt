@@ -1,19 +1,12 @@
 package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.services.POJOS.TopCoin.TopCoin
-import sg.com.quantai.middleware.services.POJOS.TopCoin.Stats
-import sg.com.quantai.middleware.services.POJOS.CoinDetails.CoinDetails
-import sg.com.quantai.middleware.services.POJOS.CoinHistory.CoinHistory
 import sg.com.quantai.middleware.services.CoinRankingAPIService
 import java.time.LocalDateTime
-import sg.com.quantai.middleware.repositories.GenericStatsRepository
+import sg.com.quantai.middleware.repositories.mongo.GenericStatsRepository
 import sg.com.quantai.middleware.data.GenericStats
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import org.springframework.boot.configurationprocessor.json.JSONObject
-import org.springframework.boot.configurationprocessor.json.JSONArray
-import java.math.BigDecimal
 
 @RestController
 @RequestMapping("/stats")

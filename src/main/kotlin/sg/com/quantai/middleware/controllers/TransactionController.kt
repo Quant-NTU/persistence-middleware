@@ -5,18 +5,17 @@ import sg.com.quantai.middleware.data.Crypto
 import sg.com.quantai.middleware.data.Stock
 import sg.com.quantai.middleware.data.enums.TransactionStatus
 import sg.com.quantai.middleware.requests.TransactionRequest
-import sg.com.quantai.middleware.repositories.TransactionRepository
-import sg.com.quantai.middleware.repositories.UserRepository
-import sg.com.quantai.middleware.repositories.CryptoRepository
-import sg.com.quantai.middleware.repositories.StockRepository
-import sg.com.quantai.middleware.repositories.StrategyRepository
+import sg.com.quantai.middleware.repositories.mongo.TransactionRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
+import sg.com.quantai.middleware.repositories.mongo.StockRepository
+import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
 import java.math.BigDecimal 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.zeromq.ZMQ
 import java.time.LocalDateTime
-import java.util.Optional
 
 @RestController
 @RequestMapping("/transactions")

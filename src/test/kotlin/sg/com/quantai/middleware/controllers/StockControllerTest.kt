@@ -3,7 +3,7 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.data.*
 import sg.com.quantai.middleware.requests.StockListRequest
 import sg.com.quantai.middleware.requests.StockRequest
-import sg.com.quantai.middleware.repositories.StockRepository
+import sg.com.quantai.middleware.repositories.mongo.StockRepository
 import java.math.BigDecimal
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -22,8 +22,8 @@ import org.springframework.test.context.junit.jupiter.SpringExtension
 class StockControllerTest
 @Autowired
 constructor(
-        private val stockRepository: StockRepository,
-        private val restTemplate: TestRestTemplate
+    private val stockRepository: StockRepository,
+    private val restTemplate: TestRestTemplate
 ) {
 
     @LocalServerPort protected var port: Int = 0

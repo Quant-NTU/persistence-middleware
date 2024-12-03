@@ -1,9 +1,7 @@
 package sg.com.quantai.middleware.controllers
 
-import sg.com.quantai.middleware.data.Crypto
 import sg.com.quantai.middleware.data.Stock
-import sg.com.quantai.middleware.repositories.StockRepository
-import sg.com.quantai.middleware.requests.CryptoRequest
+import sg.com.quantai.middleware.repositories.mongo.StockRepository
 import sg.com.quantai.middleware.requests.StockListRequest
 import sg.com.quantai.middleware.requests.StockRequest
 import org.springframework.http.ResponseEntity

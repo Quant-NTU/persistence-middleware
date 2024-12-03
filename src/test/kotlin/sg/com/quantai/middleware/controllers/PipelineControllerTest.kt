@@ -3,12 +3,11 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.Pipeline
 import sg.com.quantai.middleware.data.NewStrategy
-import sg.com.quantai.middleware.repositories.UserRepository
-import sg.com.quantai.middleware.repositories.PipelineRepository
-import sg.com.quantai.middleware.repositories.NewStrategyRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
+import sg.com.quantai.middleware.repositories.mongo.NewStrategyRepository
 import sg.com.quantai.middleware.requests.PipelineRequest
 
-import java.math.BigDecimal
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -24,7 +23,6 @@ import org.mindrot.jbcrypt.BCrypt
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
-import org.springframework.http.ResponseEntity
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)

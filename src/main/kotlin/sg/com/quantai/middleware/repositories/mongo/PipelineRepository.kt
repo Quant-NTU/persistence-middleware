@@ -1,9 +1,8 @@
-package sg.com.quantai.middleware.repositories
+package sg.com.quantai.middleware.repositories.mongo
 
 import sg.com.quantai.middleware.data.Pipeline
 import sg.com.quantai.middleware.data.User
 import org.springframework.data.mongodb.repository.MongoRepository
-import org.bson.types.ObjectId
 
 interface PipelineRepository : MongoRepository<Pipeline, String> {
     fun findOneByUid(uid: String): Pipeline

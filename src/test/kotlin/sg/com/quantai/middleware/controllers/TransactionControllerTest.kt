@@ -3,17 +3,15 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.data.Transaction
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.Crypto
-import sg.com.quantai.middleware.repositories.TransactionRepository
-import sg.com.quantai.middleware.repositories.UserRepository
-import sg.com.quantai.middleware.repositories.CryptoRepository
+import sg.com.quantai.middleware.repositories.mongo.TransactionRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
 import sg.com.quantai.middleware.requests.TransactionRequest
 import sg.com.quantai.middleware.data.enums.TransactionStatus
 import sg.com.quantai.middleware.data.enums.TransactionType
 import sg.com.quantai.middleware.services.POJOS.CoinDetails.LinkObj
-import sg.com.quantai.middleware.services.POJOS.CoinHistory.*
 import sg.com.quantai.middleware.services.POJOS.CoinHistory.CoinHistoryInstance
 import sg.com.quantai.middleware.services.POJOS.CoinHistory.HistoryInstance
-import sg.com.quantai.middleware.services.POJOS.TopCoin.*
 
 import java.math.BigDecimal
 import java.time.LocalDateTime
@@ -40,10 +38,10 @@ import org.mindrot.jbcrypt.BCrypt
 class TransactionControllerTest
 @Autowired
 constructor(
-        private val transactionRepository: TransactionRepository,
-        private val userRepository: UserRepository,
-        private val cryptoRepository: CryptoRepository,
-        private val restTemplate: TestRestTemplate
+    private val transactionRepository: TransactionRepository,
+    private val userRepository: UserRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val restTemplate: TestRestTemplate
 ) {
 
     @LocalServerPort protected var port: Int = 0
