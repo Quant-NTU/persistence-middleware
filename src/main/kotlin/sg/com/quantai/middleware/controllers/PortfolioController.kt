@@ -1,11 +1,11 @@
 package sg.com.quantai.middleware.controllers
 
-import sg.com.quantai.middleware.repositories.PortfolioRepository
-import sg.com.quantai.middleware.repositories.TransactionRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
+import sg.com.quantai.middleware.repositories.mongo.TransactionRepository
 import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.repositories.UserRepository
-import sg.com.quantai.middleware.repositories.CryptoRepository
-import sg.com.quantai.middleware.repositories.StockRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
+import sg.com.quantai.middleware.repositories.mongo.StockRepository
 import sg.com.quantai.middleware.data.Portfolio
 import sg.com.quantai.middleware.requests.PortfolioRequest
 import org.slf4j.Logger

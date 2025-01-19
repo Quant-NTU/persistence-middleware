@@ -1,21 +1,17 @@
 package sg.com.quantai.middleware.controllers
 
-import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.repositories.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.data.NewStrategy
-import sg.com.quantai.middleware.repositories.NewStrategyRepository
-import sg.com.quantai.middleware.repositories.PortfolioRepository
-import sg.com.quantai.middleware.data.Portfolio
+import sg.com.quantai.middleware.repositories.mongo.NewStrategyRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.data.Pipeline
-import sg.com.quantai.middleware.repositories.PipelineRepository
+import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
 import sg.com.quantai.middleware.requests.PipelineRequest
 
 import java.time.LocalDateTime
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.scheduling.annotation.Async
 import org.springframework.web.bind.annotation.*
 
 @RestController

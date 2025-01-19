@@ -2,7 +2,7 @@ package sg.com.quantai.middleware.controllers
 
 import java.time.LocalDateTime
 import sg.com.quantai.middleware.data.Crypto
-import sg.com.quantai.middleware.repositories.CryptoRepository
+import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
 import sg.com.quantai.middleware.requests.CryptoRequest
 import sg.com.quantai.middleware.services.CoinRankingAPIService
 import sg.com.quantai.middleware.services.POJOS.CoinDetails.CoinDetails

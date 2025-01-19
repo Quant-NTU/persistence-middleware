@@ -1,11 +1,11 @@
 package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.AccountInfo
-import sg.com.quantai.middleware.repositories.AccountInfoRepository
-import sg.com.quantai.middleware.repositories.PortfolioRepository
-import sg.com.quantai.middleware.repositories.CryptoRepository
-import sg.com.quantai.middleware.repositories.StockRepository
-import sg.com.quantai.middleware.repositories.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.AccountInfoRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
+import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
+import sg.com.quantai.middleware.repositories.mongo.StockRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.dao.EmptyResultDataAccessException

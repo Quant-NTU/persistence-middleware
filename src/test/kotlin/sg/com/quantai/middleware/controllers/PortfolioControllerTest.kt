@@ -1,8 +1,8 @@
 package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.*
-import sg.com.quantai.middleware.repositories.UserRepository
-import sg.com.quantai.middleware.repositories.PortfolioRepository
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.requests.PortfolioRequest
 import java.math.BigDecimal
 import org.junit.jupiter.api.Assertions.*
@@ -24,9 +24,9 @@ class PortfolioControllerTest
 
 @Autowired
 constructor(
-        private val portfolioRepository: PortfolioRepository,
-        private val userRepository: UserRepository,
-        private val restTemplate: TestRestTemplate
+    private val portfolioRepository: PortfolioRepository,
+    private val userRepository: UserRepository,
+    private val restTemplate: TestRestTemplate
 ) {
 
     @LocalServerPort protected var port: Int = 0
