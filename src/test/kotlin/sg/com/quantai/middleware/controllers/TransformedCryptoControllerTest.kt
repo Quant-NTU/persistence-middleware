@@ -74,4 +74,24 @@ class TransformedCryptoControllerTest {
 
         assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
     }
+
+    @Test
+    fun `getRecentTransformedData returns OK with data`() {
+        val mockData = listOf(TransformedCrypto())
+        `when`(service.getRecentTransformedData()).thenReturn(mockData)
+
+        val response = controller.getRecentTransformedData()
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertEquals(mockData, response.body)
+    }
+
+    @Test
+    fun `getRecentTransformedData returns NO_CONTENT when no data`() {
+        `when`(service.getRecentTransformedData()).thenReturn(emptyList())
+
+        val response = controller.getRecentTransformedData()
+
+        assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
+    }
 }

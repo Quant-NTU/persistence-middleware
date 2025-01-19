@@ -18,4 +18,6 @@ class TransformedCryptoService(private val repository: TransformedCryptoReposito
         val endTimestamp = Timestamp.valueOf(endTime)
         return repository.findByTimestampRange(startTimestamp, endTimestamp)
     }
+
+    fun getRecentTransformedData(): List<TransformedCrypto> = repository.findRecent()
 }

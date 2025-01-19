@@ -35,4 +35,11 @@ class TransformedCryptoController(private val service: TransformedCryptoService)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
+
+    @GetMapping("/recent")
+    fun getRecentTransformedData(): ResponseEntity<List<TransformedCrypto>> {
+        val data = service.getRecentTransformedData()
+        return if (data.isEmpty()) ResponseEntity.noContent().build()
+        else ResponseEntity.ok(data)
+    }
 }

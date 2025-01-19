@@ -14,4 +14,7 @@ interface TransformedCryptoRepository : JpaRepository<TransformedCrypto, Long> {
 
     @Query("SELECT t FROM TransformedCrypto t WHERE t.timestamp BETWEEN :startTime AND :endTime")
     fun findByTimestampRange(startTime: Timestamp, endTime: Timestamp): List<TransformedCrypto>
+
+    @Query("SELECT t FROM TransformedCrypto t ORDER BY t.timestamp DESC LIMIT 100")
+    fun findRecent(): List<TransformedCrypto>
 }

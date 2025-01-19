@@ -42,10 +42,7 @@ class TransformedCrypto(
     var priceChange: Double? = null,
 
     @Column(nullable = false)
-    var timestamp: Timestamp,
-
-    @Column(nullable = false)
-    var source: String
+    var timestamp: Timestamp
 ) {
     constructor() : this(
         id = 0,
@@ -59,7 +56,6 @@ class TransformedCrypto(
         volumeTo = 0.0,
         avgPrice = null,
         priceChange = null,
-        timestamp = Timestamp(0),
-        source = ""
+        timestamp = Timestamp(0)
     )
 }

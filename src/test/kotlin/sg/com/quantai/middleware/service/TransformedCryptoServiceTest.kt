@@ -47,4 +47,15 @@ class TransformedCryptoServiceTest {
         assertEquals(mockData, result)
         verify(repository).findByTimestampRange(startTime, endTime)
     }
+
+    @Test
+    fun `getRecentTransformedData returns recent data`() {
+        val mockData = listOf(TransformedCrypto())
+        `when`(repository.findRecent()).thenReturn(mockData)
+
+        val result = service.getRecentTransformedData()
+
+        assertEquals(mockData, result)
+        verify(repository).findRecent()
+    }
 }
