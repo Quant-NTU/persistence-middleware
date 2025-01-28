@@ -12,4 +12,3 @@ open class Asset(
     val createdDate: LocalDateTime = LocalDateTime.now(),
     val updatedDate: LocalDateTime = LocalDateTime.now(),
 )
-
