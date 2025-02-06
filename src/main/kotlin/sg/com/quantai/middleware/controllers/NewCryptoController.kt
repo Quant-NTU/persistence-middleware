@@ -1,10 +1,9 @@
 package sg.com.quantai.middleware.controllers
 
-import sg.com.quantai.middleware.data.Crypto
-import sg.com.quantai.middleware.repositories.CryptoRepository
+import sg.com.quantai.middleware.data.NewCrypto
+import sg.com.quantai.middleware.repositories.AssetCryptoRepository
+import sg.com.quantai.middleware.requests.NewCryptoRequest
 import sg.com.quantai.middleware.requests.CryptoRequest
-import sg.com.quantai.middleware.services.CoinRankingAPIService
-import sg.com.quantai.middleware.services.POJOS.TopCoin.TopCoin
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.http.HttpStatus
@@ -13,32 +12,14 @@ import java.math.BigDecimal
 @RestController
 @RequestMapping("/new-cryptos")
 class NewCryptoController(
-    private val newCryptoRepository: NewCryptoRepository,
-    private val coinRankingApiService: CoinRankingAPIService
+    private val newCryptoRepository: AssetCryptoRepository,
 ) {
 
     // Retrieve all the cryptos
-    @GetMapping
+    @GetMapping("")
     fun getAllCryptos(): ResponseEntity<List<NewCrypto>> {
-        try {
-            val topCoin: TopCoin? = coinRankingApiService.retrieveTopCoins(100).body
-
-            topCoin?.data?.coins?.forEach { coin ->
-                val existingCrypto = newCryptoRepository.findByUid(coin.uuid)
-                val crypto = NewCrypto(
-                    name = coin.name,
-                    symbol = coin.symbol,
-                    quantity = BigDecimal.ZERO, // Placeholder, update with real data if available
-                    purchasePrice = coin.price,
-                    uid = coin.uuid,
-                    _id = existingCrypto?._id ?: ObjectId.get()
-                )
-                newCryptoRepository.save(crypto)
-            }
-        } finally {
-            val cryptos = newCryptoRepository.findAll()
-            return ResponseEntity.ok(cryptos)
-        }
+        val crypto = newCryptoRepository.findAll()
+        return ResponseEntity.ok(crypto)
     }
 
     // Get a single crypto by uid
@@ -76,8 +57,78 @@ class NewCryptoController(
 
     // Get multiple cryptos by providing list of symbols
     @PostMapping("/symbols")
-    fun getCryptosBySymbols(@RequestBody request: CryptoRequest): ResponseEntity<List<NewCrypto>> {
-        val cryptos = newCryptoRepository.findBySymbolIn(request.symbols)
-        return ResponseEntity.ok(cryptos)
+    fun getCryptosBySymbols(
+        @RequestBody request: CryptoRequest
+    ): ResponseEntity<List<NewCrypto>> {
+        val listOfCryptos = newCryptoRepository.findBySymbolIn(request.symbols)
+        return ResponseEntity(listOfCryptos, HttpStatus.OK)
+    }
+
+    // Create crypto
+    @PostMapping("/create")
+    fun CreateCrypto(@RequestBody request: NewCryptoRequest): ResponseEntity<Any> {
+        // Validate request fields
+        when {
+            request.name.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: Name must not be empty.", HttpStatus.BAD_REQUEST)
+            }
+            request.symbol.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: Symbol must not be empty.", HttpStatus.BAD_REQUEST)
+            }
+            request.quantity <= BigDecimal.ZERO -> {
+                return ResponseEntity("Invalid input: Quantity must be greater than 0.", HttpStatus.BAD_REQUEST)
+            }
+            request.purchasePrice <= BigDecimal.ZERO -> {
+                return ResponseEntity("Invalid input: Purchase Price must be greater than 0.", HttpStatus.BAD_REQUEST)
+            }
+        }
+        
+        val crypto =
+            newCryptoRepository.save(
+                    NewCrypto(
+                        name = request.name,
+                        symbol = request.symbol,
+                        quantity = request.quantity,
+                        purchasePrice = request.purchasePrice,
+                    )
+                )
+        return ResponseEntity(crypto, HttpStatus.CREATED)
+    }
+
+    // Update crypto
+    @PutMapping("/{uid}")
+    fun UpdateCrypto( @PathVariable("uid") uid: String, @RequestBody request: NewCryptoRequest): ResponseEntity<Any> {
+        // Validate request fields
+        when {
+            request.name.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: Name must not be empty.", HttpStatus.BAD_REQUEST)
+            }
+            request.symbol.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: Symbol must not be empty.", HttpStatus.BAD_REQUEST)
+            }
+            request.quantity <= BigDecimal.ZERO -> {
+                return ResponseEntity("Invalid input: Quantity must be greater than 0.", HttpStatus.BAD_REQUEST)
+            }
+            request.purchasePrice <= BigDecimal.ZERO -> {
+                return ResponseEntity("Invalid input: Purchase Price must be greater than 0.", HttpStatus.BAD_REQUEST)
+            }
+        }
+        val crypto = newCryptoRepository.findByUid(uid)
+
+        val updatedCrypto = crypto.copy(
+            name = request.name ?: crypto.name,
+            symbol = request.symbol ?: crypto.symbol,
+            quantity = request.quantity?: crypto.quantity,
+        )
+
+        val savedCrypto = newCryptoRepository.save(updatedCrypto)
+        return ResponseEntity.ok(savedCrypto)
+    }
+
+    // Delete crypto
+    @DeleteMapping("/delete/{uid}")
+    fun DeleteCrypto(@PathVariable("uid") uid: String): ResponseEntity<Any> {
+        newCryptoRepository.deleteByUid(uid)
+        return ResponseEntity.ok().body("Deleted crypto ${uid}")
     }
 }
