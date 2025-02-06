@@ -9,7 +9,7 @@ import sg.com.quantai.middleware.data.NewPortfolio
 
 enum class PortfolioAction { BUY, SELL, ADD, REMOVE }
 
-data class NewPortfolioHistory(
+data class PortfolioHistory(
     @Id
     val id: ObjectId = ObjectId.get(),
     val asset: Asset,                   //not sure if this is correct but based on theory I think it is                   
@@ -17,9 +17,8 @@ data class NewPortfolioHistory(
     val quantity: BigDecimal,
     val value: BigDecimal,
 
-    @DBRef
-    val owner: NewPortfolio, //To map portfoliohistory to new portfolio 
-    
+    @DBRef(lazy=true) val owner: NewPortfolio,
+
     @Id
     val _id: ObjectId = ObjectId.get()
 )

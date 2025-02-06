@@ -8,18 +8,16 @@ import org.springframework.data.mongodb.core.mapping.DBRef
 import sg.com.quantai.middleware.data.PortfolioHistory  
 import sg.com.quantai.middleware.data.User 
 
-@Document(collection = "portfolios")
+@Document(collection = "new-portfolios")
 data class NewPortfolio(
     @Id
     val id: ObjectId = ObjectId.get(),
 
     val isMain: Boolean,
+    
+    @DBRef val owner: User, //Needed to map portfolio to user  
+    @DBRef(lazy=true) val history: List<PortfolioHistory>? = emptyList<PortfolioHistory>(),
 
-    val history: List<PortfolioHistory>,
-    
-    @DBRef
-    val owner: User, //Needed to map portfolio to user  
-    
     @Indexed(unique = true)
-    val uid: String = ObjectId.get().toString() //Not sure what this does 
+    val uid: String = ObjectId.get().toString() //assigns uid that mongo uses to identify the object
 )
