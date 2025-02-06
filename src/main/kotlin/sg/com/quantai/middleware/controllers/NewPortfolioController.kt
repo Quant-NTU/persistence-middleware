@@ -49,5 +49,46 @@ class NewPortfolioController(
             ResponseEntity.status(HttpStatus.CREATED).body(portfolioRepository.save(portfolio))
         } ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
+
+    @PutMapping("/{user_id}/{portfolio_id}")
+    fun updatePortfolio(
+        @RequestBody request: NewPortfolioRequest,
+        @PathVariable("user_id") user_id: String,
+        @PathVariable("portfolio_id") portfolio_id: String
+    ): ResponseEntity<Any> {
+
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(portfolio_id)
+
+        if (portfolio.owner.uid != user.uid) {
+            return ResponseEntity(HttpStatus.FORBIDDEN)
+        }
+        
+        val updatedPipeline = portfolio.copy(
+            isMain = request.isMain(),
+            history = request.getHistory(),
+        )
+
+        val savedPipeline = portfolioRepository.save(updatedPipeline)
+
+        return ResponseEntity.ok(savedPipeline)
+    }
+
+    @DeleteMapping("/{user_id}/{portfolio_id}")
+    fun deletePortfolio(
+        @PathVariable("portfolio_id") portfolio_id: String,
+        @PathVariable("user_id") user_id: String
+    ): ResponseEntity<Any> {
+        
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(portfolio_id)
+        if (portfolio.owner.uid == user.uid) {
+            portfolioRepository.deleteByUid(portfolio.uid)
+        }
+        else{
+            return ResponseEntity(HttpStatus.FORBIDDEN)
+        }
+        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_id}")
+    }
 }
 
