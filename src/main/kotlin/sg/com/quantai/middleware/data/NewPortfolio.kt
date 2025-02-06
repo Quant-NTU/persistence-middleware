@@ -9,13 +9,13 @@ import sg.com.quantai.middleware.data.PortfolioHistory
 import sg.com.quantai.middleware.data.User 
 
 @Document(collection = "portfolios")
-data class Portfolio(
+data class NewPortfolio(
     @Id
     val id: ObjectId = ObjectId.get(),
 
     val isMain: Boolean,
 
-    val history: List<NewPortfolioHistory>,
+    val history: List<PortfolioHistory>,
     
     @DBRef
     val owner: User, //Needed to map portfolio to user  
