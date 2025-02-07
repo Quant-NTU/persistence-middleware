@@ -24,7 +24,7 @@ import org.springframework.http.ResponseEntity
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class CryptoControllerTest 
+class NewCryptoControllerTest 
 @Autowired 
 constructor(
     private val newCryptoRepository: AssetCryptoRepository,
