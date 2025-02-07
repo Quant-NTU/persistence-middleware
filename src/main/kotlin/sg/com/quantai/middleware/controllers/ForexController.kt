@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus
 import java.math.BigDecimal
 
 @RestController
-@RequestMapping("/Forex")
+@RequestMapping("/forex")
 class ForexController(
     private val newForexRepository: AssetForexRepository,
 ) {

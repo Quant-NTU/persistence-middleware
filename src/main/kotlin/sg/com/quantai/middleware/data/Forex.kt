@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.annotation.Id
 import java.math.BigDecimal
 
-@Document(collection = "Forex")
+@Document(collection = "forex")
 data class Forex(
     @Id val _id: ObjectId = ObjectId.get(),
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),

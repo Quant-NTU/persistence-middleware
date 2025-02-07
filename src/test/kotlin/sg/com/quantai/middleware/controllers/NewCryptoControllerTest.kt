@@ -37,7 +37,7 @@ constructor(
         newCryptoRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/new-crypto"
+    private fun getRootUrl(): String? = "http://localhost:$port/newCrypto"
 
     private fun prepareNewCryptoRequest(
         name: String = "Bitcoin",

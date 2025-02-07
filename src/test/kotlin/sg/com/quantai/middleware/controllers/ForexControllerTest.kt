@@ -37,7 +37,7 @@ constructor(
         newForexRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/Forex"
+    private fun getRootUrl(): String? = "http://localhost:$port/forex"
 
     private fun prepareForexRequest(
         name: String = "United States Dollar",

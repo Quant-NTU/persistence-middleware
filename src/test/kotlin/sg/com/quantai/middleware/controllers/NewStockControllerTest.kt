@@ -37,7 +37,7 @@ constructor(
         newStockRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/NewStock"
+    private fun getRootUrl(): String? = "http://localhost:$port/newStock"
 
     private fun prepareNewStockRequest(
         name: String = "Apple",

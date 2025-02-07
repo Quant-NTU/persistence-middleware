@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus
 import java.math.BigDecimal
 
 @RestController
-@RequestMapping("/new-crypto")
+@RequestMapping("/newCrypto")
 class NewCryptoController(
     private val newCryptoRepository: AssetCryptoRepository,
 ) {
