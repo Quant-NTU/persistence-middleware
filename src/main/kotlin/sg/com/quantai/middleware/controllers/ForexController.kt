@@ -34,7 +34,7 @@ class ForexController(
 
     // Get single forex by name
     @GetMapping("/name/{name}")
-    fun getForexByName(@PathVariable name: String): ResponseEntity<Forex> {
+    fun getForexByName(@PathVariable name: String): ResponseEntity<List<Forex>> {
         val forex = newForexRepository.findOneByName(name)
         return if (forex != null) {
             ResponseEntity.ok(forex)
@@ -45,7 +45,7 @@ class ForexController(
 
     // Get single forex by symbol
     @GetMapping("/symbol/{symbol}")
-    fun getForexBySymbol(@PathVariable symbol: String): ResponseEntity<Forex> {
+    fun getForexBySymbol(@PathVariable symbol: String): ResponseEntity<List<Forex>> {
         val forex = newForexRepository.findOneBySymbol(symbol)
         return if (forex != null) {
             ResponseEntity.ok(forex)
@@ -54,19 +54,31 @@ class ForexController(
         }
     }
 
+    // Get total quantity of a forex by name
+    @GetMapping("/quantity/{name}")
+    fun getForexValueByName(@PathVariable name: String): ResponseEntity<BigDecimal> {
+        val totalQuantity = newForexRepository.findByName(name).sumOf{ it.quantity }
+        return ResponseEntity.ok(totalQuantity)
+    }
+
+
+    // Get total quantity of single forex by symbol
+    @GetMapping("/quantity/{symbol}")
+    fun getForexValueBySymbol(@PathVariable symbol: String): ResponseEntity<BigDecimal> {
+        val totalQuantity = newForexRepository.findBySymbol(name).sumOf{ it.quantity }
+        return ResponseEntity.ok(totalQuantity)
+    }
+
     // Create forex
     @PostMapping("/create")
     fun CreateForex(@RequestBody request: ForexRequest): ResponseEntity<Any> {
         // Validate request fields
         when {
-            request.name.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Name must not be empty.", HttpStatus.BAD_REQUEST)
+            request.name.isNullOrBlank() && request.symbol.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: At least one of Name or Symbol must not be empty.", HttpStatus.BAD_REQUEST)
             }
-            request.symbol.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Symbol must not be empty.", HttpStatus.BAD_REQUEST)
-            }
-            request.quantity <= BigDecimal.ZERO -> {
-                return ResponseEntity("Invalid input: Quantity must be greater than 0.", HttpStatus.BAD_REQUEST)
+            request.quantity < BigDecimal.ZERO -> {
+                return ResponseEntity("Invalid input: Quantity cannot be negative.", HttpStatus.BAD_REQUEST)
             }
             request.purchasePrice <= BigDecimal.ZERO -> {
                 return ResponseEntity("Invalid input: Purchase Price must be greater than 0.", HttpStatus.BAD_REQUEST)
@@ -90,11 +102,8 @@ class ForexController(
     fun UpdateForex( @PathVariable("uid") uid: String, @RequestBody request: ForexRequest): ResponseEntity<Any> {
         // Validate request fields
         when {
-            request.name.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Name must not be empty.", HttpStatus.BAD_REQUEST)
-            }
-            request.symbol.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Symbol must not be empty.", HttpStatus.BAD_REQUEST)
+            request.name.isNullOrBlank() && request.symbol.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: At least one of Name or Symbol must not be empty.", HttpStatus.BAD_REQUEST)
             }
             request.quantity <= BigDecimal.ZERO -> {
                 return ResponseEntity("Invalid input: Quantity must be greater than 0.", HttpStatus.BAD_REQUEST)

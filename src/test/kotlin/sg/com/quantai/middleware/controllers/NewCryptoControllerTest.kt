@@ -3,7 +3,6 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.data.NewCrypto
 import sg.com.quantai.middleware.repositories.AssetCryptoRepository
 import sg.com.quantai.middleware.requests.NewCryptoRequest
-import sg.com.quantai.middleware.requests.CryptoRequest
 
 import java.math.BigDecimal
 import org.junit.jupiter.api.Assertions.*
@@ -25,7 +24,7 @@ import org.springframework.http.ResponseEntity
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class NewCryptoControllerTest 
+class CryptoControllerTest 
 @Autowired 
 constructor(
     private val newCryptoRepository: AssetCryptoRepository,
@@ -38,9 +37,9 @@ constructor(
         newCryptoRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/new-cryptos"
+    private fun getRootUrl(): String? = "http://localhost:$port/new-crypto"
 
-    private fun prepareCryptoRequest(
+    private fun prepareNewCryptoRequest(
         name: String = "Bitcoin",
         symbol: String = "BTC",
         quantity: BigDecimal = BigDecimal(1),
@@ -68,16 +67,14 @@ constructor(
         )
     )
 
-
-
     // Create Functions
     @Test
-    fun `should create crypto`() {
-        val cryptoRequest = prepareCryptoRequest()
+    fun `should add crypto`() {
+        val cryptoRequest = prepareNewCryptoRequest()
 
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
@@ -92,41 +89,52 @@ constructor(
     }
 
     @Test
-    fun `should reject bad request - Empty Name`() {
-        val cryptoRequest = prepareCryptoRequest(name="")
+    fun `should accept Empty Name`() {
+        val cryptoRequest = prepareNewCryptoRequest(name="")
 
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
             )
 
-        assertEquals(400 , response.statusCode.value())
+        assertEquals(201, response.statusCode.value())
+        assertNotNull(response.body?.uid)
+        assertEquals(cryptoRequest.name, response.body?.name)
+        assertEquals(cryptoRequest.symbol, response.body?.symbol)
+        assertEquals(cryptoRequest.quantity, response.body?.quantity)
+        assertEquals(cryptoRequest.purchasePrice, response.body?.purchasePrice)
     }
 
     @Test
-    fun `should reject bad request - Empty Symbol`() {
-        val cryptoRequest = prepareCryptoRequest(symbol="")
+    fun `should accept Empty Symbol`() {
+        val cryptoRequest = prepareNewCryptoRequest(symbol="")
 
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
             )
 
-        assertEquals(400 , response.statusCode.value())
+        assertEquals(201, response.statusCode.value())
+        assertNotNull(response.body?.uid)
+        assertEquals(cryptoRequest.name, response.body?.name)
+        assertEquals(cryptoRequest.symbol, response.body?.symbol)
+        assertEquals(cryptoRequest.quantity, response.body?.quantity)
+        assertEquals(cryptoRequest.purchasePrice, response.body?.purchasePrice)
     }
 
     @Test
-    fun `should reject bad request - quantity 0`() {
-        val cryptoRequest = prepareCryptoRequest(quantity = BigDecimal(0))
+    fun `should reject bad request - Empty Name and Symbol`() {
+        val cryptoRequest = prepareNewCryptoRequest(name="",symbol="")
+
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
@@ -137,11 +145,11 @@ constructor(
 
     @Test
     fun `should reject bad request - quantity negative`() {
-        val cryptoRequest = prepareCryptoRequest(quantity = BigDecimal(-0.5))
+        val cryptoRequest = prepareNewCryptoRequest(quantity = BigDecimal(-0.5))
 
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
@@ -152,10 +160,10 @@ constructor(
 
     @Test
     fun `should reject bad request - purchase price 0`() {
-        val cryptoRequest = prepareCryptoRequest(purchasePrice = BigDecimal(0))
+        val cryptoRequest = prepareNewCryptoRequest(purchasePrice = BigDecimal(0))
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
@@ -166,11 +174,11 @@ constructor(
 
     @Test
     fun `should reject bad request - purchase price negative`() {
-        val cryptoRequest = prepareCryptoRequest(purchasePrice = BigDecimal(-0.5))
+        val cryptoRequest = prepareNewCryptoRequest(purchasePrice = BigDecimal(-0.5))
 
         val response =
             restTemplate.exchange(
-                getRootUrl() + "/create",
+                getRootUrl() + "/add",
                 HttpMethod.POST,
                 HttpEntity(cryptoRequest, HttpHeaders()),
                 NewCrypto::class.java
@@ -190,7 +198,7 @@ constructor(
         assertEquals(200, response.statusCode.value())
         assertEquals(3, response.body?.size)
         val names = response.body?.map { (it as Map<*, *>)["name"] } ?: emptyList()
-        assertTrue(names.containsAll(listOf("Test Crypto", "Test2", "Test3")))
+        assertTrue(names.containsAll(listOf("Test NewCrypto", "Test2", "Test3")))
     }
 
     @Test
@@ -205,48 +213,66 @@ constructor(
     }
 
     @Test
-    fun `should get a single crypto by name`() {
-        saveOneCrypto()
-        saveOneCrypto(name = "Test2")
-        saveOneCrypto(name = "Test3")
-        val Name = "Test3"
-        var response = restTemplate.getForEntity(getRootUrl()+"/name/$Name", NewCrypto::class.java)
+    fun `should get a crypto by name`() {
+        saveOneCrypto(symbol = "Test1", name = "NewCrypto A")
+        saveOneCrypto(symbol = "Test2", name = "NewCrypto A")
+        saveOneCrypto(symbol = "Test3", name = "NewCrypto B")
+
+        val name = "NewCrypto A"
+        val response = restTemplate.getForEntity(getRootUrl() + "/name/$name", List::class.java)
 
         assertEquals(200, response.statusCode.value())
-        assertEquals("Test3", response.body?.name)
+
+        val symbols = response.body?.map { (it as Map<*, *>)["symbol"] } ?: emptyList()
+        assertTrue(symbols.containsAll(listOf("Test1","Test2")) && symbols.size == 2)
     }
 
     @Test
-    fun `should get multiple cryptos by providing list of symbols`() {
-        saveOneCrypto()
-        saveOneCrypto(name = "Test2",symbol = "TT")
-        saveOneCrypto(name = "Test3",symbol = "TTT")
-        val symbolsString = "TEST,TT"
-        val symbolsList: List<String> = symbolsString.split(",").map { it.trim() }
+    fun `should get a crypto by symbol`() {
+        saveOneCrypto(symbol = "Test2", name = "NewCrypto A")
+        saveOneCrypto(symbol = "Test2", name = "NewCrypto B")
+        saveOneCrypto(symbol = "Test3", name = "NewCrypto C")
 
-        val cryptoRequest = CryptoRequest(
-            symbols = symbolsList
-        )
-        val response =
-            restTemplate.exchange(
-                getRootUrl() + "/symbols",
-                HttpMethod.POST,
-                HttpEntity(cryptoRequest, HttpHeaders()),
-                List::class.java
-            )
+        val symbol = "Test2"
+        val response = restTemplate.getForEntity(getRootUrl() + "/symbol/$symbol", List::class.java)
 
         assertEquals(200, response.statusCode.value())
-        assertEquals(2, response.body?.size)
 
-        val symbols = response.body?.map { (it as Map<*, *>)["symbol"] } ?: emptyList()
-        assertTrue(symbols.containsAll(listOf("TEST", "TT")))
+        val names = response.body?.map { (it as Map<*, *>)["name"] } ?: emptyList()
+        assertTrue(names.containsAll(listOf("NewCrypto A", "NewCrypto B")) && names.size == 2)
     }
 
-    // update functions
+    @Test
+    fun `should get quantity of a crypto by name`() {
+        saveOneCrypto(symbol = "Test1", name = "NewCrypto A",quantity=BigDecimal(5))
+        saveOneCrypto(symbol = "Test2", name = "NewCrypto A",quantity=BigDecimal(5))
+        saveOneCrypto(symbol = "Test3", name = "NewCrypto B")
+
+        val name = "NewCrypto A"
+        val response = restTemplate.getForEntity(getRootUrl() + "/quantity/$name", BigDecimal::class.java)
+
+        assertEquals(200, response.statusCode.value())
+        assertEquals(BigDecimal(10), response.body)
+    }
+
+    @Test
+    fun `should get quantity of a crypto by symbol`() {
+        saveOneCrypto(symbol = "Test2", name = "NewCrypto A",quantity=BigDecimal(5))
+        saveOneCrypto(symbol = "Test2", name = "NewCrypto B",quantity=BigDecimal(5))
+        saveOneCrypto(symbol = "Test3", name = "NewCrypto C")
+
+        val symbol = "Test2"
+        val response = restTemplate.getForEntity(getRootUrl() + "/quantity/$symbol", BigDecimal::class.java)
+
+        assertEquals(200, response.statusCode.value())
+        assertEquals(BigDecimal(10), response.body)
+    }
+
+    // updates
     @Test
     fun `should update crypto`() {
         val savedId = saveOneCrypto().uid
-        val cryptoRequest = prepareCryptoRequest()
+        val cryptoRequest = prepareNewCryptoRequest()
 
         val response =
             restTemplate.exchange(
@@ -264,39 +290,9 @@ constructor(
     }
 
     @Test
-    fun `update - should reject bad request - Empty Name`() {
+    fun `update - should reject bad request - Empty Name and symbol`() {
         val savedId = saveOneCrypto().uid
-        val cryptoRequest = prepareCryptoRequest(name="")
-        val response =
-            restTemplate.exchange(
-                getRootUrl() + "/$savedId",
-                HttpMethod.PUT,
-                HttpEntity(cryptoRequest, HttpHeaders()),
-                NewCrypto::class.java
-            )
-
-        assertEquals(400 , response.statusCode.value())
-    }
-
-    @Test
-    fun `update - should reject bad request - Empty Symbol`() {
-        val cryptoRequest = prepareCryptoRequest(symbol="")
-        val savedId = saveOneCrypto().uid
-        val response =
-            restTemplate.exchange(
-                getRootUrl() + "/$savedId",
-                HttpMethod.PUT,
-                HttpEntity(cryptoRequest, HttpHeaders()),
-                NewCrypto::class.java
-            )
-
-        assertEquals(400 , response.statusCode.value())
-    }
-
-    @Test
-    fun `update - should reject bad request - quantity 0`() {
-        val cryptoRequest = prepareCryptoRequest(quantity = BigDecimal(0))
-        val savedId = saveOneCrypto().uid
+        val cryptoRequest = prepareNewCryptoRequest(name="",symbol="")
         val response =
             restTemplate.exchange(
                 getRootUrl() + "/$savedId",
@@ -310,7 +306,7 @@ constructor(
 
     @Test
     fun `update - should reject bad request - quantity negative`() {
-        val cryptoRequest = prepareCryptoRequest(quantity = BigDecimal(-0.5))
+        val cryptoRequest = prepareNewCryptoRequest(quantity = BigDecimal(-0.5))
         val savedId = saveOneCrypto().uid
         val response =
             restTemplate.exchange(
@@ -325,7 +321,7 @@ constructor(
 
     @Test
     fun `update- should reject bad request - purchase price 0`() {
-        val cryptoRequest = prepareCryptoRequest(purchasePrice = BigDecimal(0))
+        val cryptoRequest = prepareNewCryptoRequest(purchasePrice = BigDecimal(0))
         val savedId = saveOneCrypto().uid
         val response =
             restTemplate.exchange(
@@ -340,7 +336,7 @@ constructor(
 
     @Test
     fun `update- should reject bad request - purchase price negative`() {
-        val cryptoRequest = prepareCryptoRequest(purchasePrice = BigDecimal(-0.5))
+        val cryptoRequest = prepareNewCryptoRequest(purchasePrice = BigDecimal(-0.5))
         val savedId = saveOneCrypto().uid
         val response =
             restTemplate.exchange(
@@ -353,7 +349,8 @@ constructor(
         assertEquals(400 , response.statusCode.value())
     }
 
-    // delete function
+    // delete
+
     @Test
     fun `should delete crypto`() {
         val savedId = saveOneCrypto().uid

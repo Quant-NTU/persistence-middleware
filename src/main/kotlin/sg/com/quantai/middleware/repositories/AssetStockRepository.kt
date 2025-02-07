@@ -6,10 +6,8 @@ import org.springframework.data.mongodb.repository.MongoRepository
 
 interface AssetStockRepository : MongoRepository<NewStock, String> {
     fun findOneByUid(uid: String): NewStock
-    fun findByUid(uid: String): List<NewStock>
-    fun findOneByName(name: String): NewStock
-    fun findOneBySymbol(symbol: String): NewStock?
-    fun findBySymbolIn(symbols: List<String>): List<NewStock>
+    fun findByName(name: String): List<NewStock>
+    fun findBySymbol(symbol: String): List<NewStock>
     fun deleteByUid(uid: String)
     override fun deleteAll()
 }

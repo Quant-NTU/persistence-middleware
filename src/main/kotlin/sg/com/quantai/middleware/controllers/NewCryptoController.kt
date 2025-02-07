@@ -3,14 +3,13 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.data.NewCrypto
 import sg.com.quantai.middleware.repositories.AssetCryptoRepository
 import sg.com.quantai.middleware.requests.NewCryptoRequest
-import sg.com.quantai.middleware.requests.CryptoRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.http.HttpStatus
 import java.math.BigDecimal
 
 @RestController
-@RequestMapping("/new-cryptos")
+@RequestMapping("/new-crypto")
 class NewCryptoController(
     private val newCryptoRepository: AssetCryptoRepository,
 ) {
@@ -35,8 +34,8 @@ class NewCryptoController(
 
     // Get single crypto by name
     @GetMapping("/name/{name}")
-    fun getCryptoByName(@PathVariable name: String): ResponseEntity<NewCrypto> {
-        val crypto = newCryptoRepository.findOneByName(name)
+    fun getCryptoByName(@PathVariable name: String): ResponseEntity<List<NewCrypto>> {
+        val crypto = newCryptoRepository.findByName(name)
         return if (crypto != null) {
             ResponseEntity.ok(crypto)
         } else {
@@ -46,8 +45,8 @@ class NewCryptoController(
 
     // Get single crypto by symbol
     @GetMapping("/symbol/{symbol}")
-    fun getCryptoBySymbol(@PathVariable symbol: String): ResponseEntity<NewCrypto> {
-        val crypto = newCryptoRepository.findOneBySymbol(symbol)
+    fun getCryptoBySymbol(@PathVariable symbol: String): ResponseEntity<List<NewCrypto>> {
+        val crypto = newCryptoRepository.findBySymbol(symbol)
         return if (crypto != null) {
             ResponseEntity.ok(crypto)
         } else {
@@ -55,13 +54,19 @@ class NewCryptoController(
         }
     }
 
-    // Get multiple cryptos by providing list of symbols
-    @PostMapping("/symbols")
-    fun getCryptosBySymbols(
-        @RequestBody request: CryptoRequest
-    ): ResponseEntity<List<NewCrypto>> {
-        val listOfCryptos = newCryptoRepository.findBySymbolIn(request.symbols)
-        return ResponseEntity(listOfCryptos, HttpStatus.OK)
+    // Get total quantity of a crypto by name
+    @GetMapping("/quantity/{name}")
+    fun getCryptoValueByName(@PathVariable name: String): ResponseEntity<BigDecimal> {
+        val totalQuantity = newCryptoRepository.findByName(name).sumOf{ it.quantity }
+        return ResponseEntity.ok(totalQuantity)
+    }
+
+
+    // Get total quantity of single crypto by symbol
+    @GetMapping("/quantity/{symbol}")
+    fun getCryptoValueBySymbol(@PathVariable symbol: String): ResponseEntity<BigDecimal> {
+        val totalQuantity = newCryptoRepository.findBySymbol(name).sumOf{ it.quantity }
+        return ResponseEntity.ok(totalQuantity)
     }
 
     // Create crypto
@@ -69,11 +74,8 @@ class NewCryptoController(
     fun CreateCrypto(@RequestBody request: NewCryptoRequest): ResponseEntity<Any> {
         // Validate request fields
         when {
-            request.name.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Name must not be empty.", HttpStatus.BAD_REQUEST)
-            }
-            request.symbol.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Symbol must not be empty.", HttpStatus.BAD_REQUEST)
+            request.name.isNullOrBlank() && request.symbol.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: At least  of Name or Symbol must not be empty.", HttpStatus.BAD_REQUEST)
             }
             request.quantity <= BigDecimal.ZERO -> {
                 return ResponseEntity("Invalid input: Quantity must be greater than 0.", HttpStatus.BAD_REQUEST)
@@ -100,11 +102,8 @@ class NewCryptoController(
     fun UpdateCrypto( @PathVariable("uid") uid: String, @RequestBody request: NewCryptoRequest): ResponseEntity<Any> {
         // Validate request fields
         when {
-            request.name.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Name must not be empty.", HttpStatus.BAD_REQUEST)
-            }
-            request.symbol.isNullOrBlank() -> {
-                return ResponseEntity("Invalid input: Symbol must not be empty.", HttpStatus.BAD_REQUEST)
+            request.name.isNullOrBlank() && request.symbol.isNullOrBlank() -> {
+                return ResponseEntity("Invalid input: At least  of Name or Symbol must not be empty.", HttpStatus.BAD_REQUEST)
             }
             request.quantity <= BigDecimal.ZERO -> {
                 return ResponseEntity("Invalid input: Quantity must be greater than 0.", HttpStatus.BAD_REQUEST)

@@ -37,11 +37,11 @@ constructor(
         newForexRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/new-forex"
+    private fun getRootUrl(): String? = "http://localhost:$port/Forex"
 
     private fun prepareForexRequest(
-        name: String = "Apple",
-        symbol: String = "APPL",
+        name: String = "United States Dollar",
+        symbol: String = "USD",
         quantity: BigDecimal = BigDecimal(1),
         purchasePrice: BigDecimal= BigDecimal(20000),
     ) =
@@ -89,7 +89,7 @@ constructor(
     }
 
     @Test
-    fun `should reject bad request - Empty Name`() {
+    fun `should accept Empty Name`() {
         val forexRequest = prepareForexRequest(name="")
 
         val response =
@@ -100,11 +100,16 @@ constructor(
                 Forex::class.java
             )
 
-        assertEquals(400 , response.statusCode.value())
+        assertEquals(201, response.statusCode.value())
+        assertNotNull(response.body?.uid)
+        assertEquals(forexRequest.name, response.body?.name)
+        assertEquals(forexRequest.symbol, response.body?.symbol)
+        assertEquals(forexRequest.quantity, response.body?.quantity)
+        assertEquals(forexRequest.purchasePrice, response.body?.purchasePrice)
     }
 
     @Test
-    fun `should reject bad request - Empty Symbol`() {
+    fun `should accept Empty Symbol`() {
         val forexRequest = prepareForexRequest(symbol="")
 
         val response =
@@ -115,12 +120,18 @@ constructor(
                 Forex::class.java
             )
 
-        assertEquals(400 , response.statusCode.value())
+        assertEquals(201, response.statusCode.value())
+        assertNotNull(response.body?.uid)
+        assertEquals(forexRequest.name, response.body?.name)
+        assertEquals(forexRequest.symbol, response.body?.symbol)
+        assertEquals(forexRequest.quantity, response.body?.quantity)
+        assertEquals(forexRequest.purchasePrice, response.body?.purchasePrice)
     }
 
     @Test
-    fun `should reject bad request - quantity 0`() {
-        val forexRequest = prepareForexRequest(quantity = BigDecimal(0))
+    fun `should reject bad request - Empty Name and Symbol`() {
+        val forexRequest = prepareForexRequest(name="",symbol="")
+
         val response =
             restTemplate.exchange(
                 getRootUrl() + "/add",
@@ -202,36 +213,59 @@ constructor(
     }
 
     @Test
-    fun `should get a single forex by name`() {
-        saveOneForex()
-        saveOneForex(name = "Test2")
-        saveOneForex(name = "Test3")
-        val Name = "Test3"
-        var response = restTemplate.getForEntity(getRootUrl()+"/name/$Name", Forex::class.java)
+    fun `should get a forex by name`() {
+        saveOneForex(symbol = "Test1", name = "Forex A")
+        saveOneForex(symbol = "Test2", name = "Forex A")
+        saveOneForex(symbol = "Test3", name = "Forex B")
+
+        val name = "Forex A"
+        val response = restTemplate.getForEntity(getRootUrl() + "/name/$name", List::class.java)
 
         assertEquals(200, response.statusCode.value())
-        assertEquals("Test3", response.body?.name)
+
+        val symbols = response.body?.map { (it as Map<*, *>)["symbol"] } ?: emptyList()
+        assertTrue(symbols.containsAll(listOf("Test1","Test2")) && symbols.size == 2)
     }
 
     @Test
-    fun `should get multiple forexs by providing list of symbols`() {
-        saveOneForex()
-        saveOneForex(name = "Test2",symbol = "TT")
-        saveOneForex(name = "Test3",symbol = "TTT")
-        val forexRequest = prepareForexRequest(symbol = "TEST, TT")
-        val response =
-            restTemplate.exchange(
-                getRootUrl() + "/symbols",
-                HttpMethod.POST,
-                HttpEntity(forexRequest, HttpHeaders()),
-                List::class.java
-            )
+    fun `should get a forex by symbol`() {
+        saveOneForex(symbol = "Test2", name = "Forex A")
+        saveOneForex(symbol = "Test2", name = "Forex B")
+        saveOneForex(symbol = "Test3", name = "Forex C")
+
+        val symbol = "Test2"
+        val response = restTemplate.getForEntity(getRootUrl() + "/symbol/$symbol", List::class.java)
 
         assertEquals(200, response.statusCode.value())
-        assertEquals(2, response.body?.size)
 
-        val symbols = response.body?.map { (it as Map<*, *>)["symbol"] } ?: emptyList()
-        assertTrue(symbols.containsAll(listOf("TEST", "TT")))
+        val names = response.body?.map { (it as Map<*, *>)["name"] } ?: emptyList()
+        assertTrue(names.containsAll(listOf("Forex A", "Forex B")) && names.size == 2)
+    }
+
+    @Test
+    fun `should get quantity of a forex by name`() {
+        saveOneForex(symbol = "Test1", name = "Forex A",quantity=BigDecimal(5))
+        saveOneForex(symbol = "Test2", name = "Forex A",quantity=BigDecimal(5))
+        saveOneForex(symbol = "Test3", name = "Forex B")
+
+        val name = "Forex A"
+        val response = restTemplate.getForEntity(getRootUrl() + "/quantity/$name", BigDecimal::class.java)
+
+        assertEquals(200, response.statusCode.value())
+        assertEquals(BigDecimal(10), response.body)
+    }
+
+    @Test
+    fun `should get quantity of a forex by symbol`() {
+        saveOneForex(symbol = "Test2", name = "Forex A",quantity=BigDecimal(5))
+        saveOneForex(symbol = "Test2", name = "Forex B",quantity=BigDecimal(5))
+        saveOneForex(symbol = "Test3", name = "Forex C")
+
+        val symbol = "Test2"
+        val response = restTemplate.getForEntity(getRootUrl() + "/quantity/$symbol", BigDecimal::class.java)
+
+        assertEquals(200, response.statusCode.value())
+        assertEquals(BigDecimal(10), response.body)
     }
 
     // updates
@@ -256,39 +290,9 @@ constructor(
     }
 
     @Test
-    fun `update - should reject bad request - Empty Name`() {
+    fun `update - should reject bad request - Empty Name and symbol`() {
         val savedId = saveOneForex().uid
-        val forexRequest = prepareForexRequest(name="")
-        val response =
-            restTemplate.exchange(
-                getRootUrl() + "/$savedId",
-                HttpMethod.PUT,
-                HttpEntity(forexRequest, HttpHeaders()),
-                Forex::class.java
-            )
-
-        assertEquals(400 , response.statusCode.value())
-    }
-
-    @Test
-    fun `update - should reject bad request - Empty Symbol`() {
-        val forexRequest = prepareForexRequest(symbol="")
-        val savedId = saveOneForex().uid
-        val response =
-            restTemplate.exchange(
-                getRootUrl() + "/$savedId",
-                HttpMethod.PUT,
-                HttpEntity(forexRequest, HttpHeaders()),
-                Forex::class.java
-            )
-
-        assertEquals(400 , response.statusCode.value())
-    }
-
-    @Test
-    fun `update - should reject bad request - quantity 0`() {
-        val forexRequest = prepareForexRequest(quantity = BigDecimal(0))
-        val savedId = saveOneForex().uid
+        val forexRequest = prepareForexRequest(name="",symbol="")
         val response =
             restTemplate.exchange(
                 getRootUrl() + "/$savedId",

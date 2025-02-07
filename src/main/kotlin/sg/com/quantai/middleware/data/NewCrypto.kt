@@ -11,8 +11,8 @@ import java.math.BigDecimal
 data class NewCrypto(
     @Id val _id: ObjectId = ObjectId.get(),
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),
-    override val name: String,
-    override val symbol: String,
+    override val name: String?,
+    override val symbol: String?,
     override val quantity: BigDecimal,
     override val purchasePrice: BigDecimal,
 ): Asset(name, symbol, quantity, purchasePrice) 

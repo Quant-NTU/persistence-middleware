@@ -5,10 +5,9 @@ import org.bson.types.ObjectId
 import org.springframework.data.mongodb.repository.MongoRepository
 
 interface AssetForexRepository : MongoRepository<Forex, String> {
-    fun findOneByUid(uid: String): Forex
     fun findByUid(uid: String): Forex
-    fun findOneByName(name: String): Forex
-    fun findOneBySymbol(symbol: String): Forex?
+    fun findByName(name: String): List<NewForex>
+    fun findBySymbol(symbol: String): List<NewForex>
     fun deleteByUid(uid: String)
     override fun deleteAll()
 }
