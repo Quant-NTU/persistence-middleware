@@ -2,7 +2,7 @@ package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.NewStock
 import sg.com.quantai.middleware.repositories.AssetStockRepository
-import sg.com.quantai.middleware.requests.NewNewStockRequest
+import sg.com.quantai.middleware.requests.NewStockRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.http.HttpStatus
@@ -10,7 +10,7 @@ import java.math.BigDecimal
 
 @RestController
 @RequestMapping("/NewStock")
-class StockController(
+class NewStockController(
     private val newStockRepository: AssetStockRepository,
 ) {
 
@@ -34,8 +34,8 @@ class StockController(
 
     // Get single stock by name
     @GetMapping("/name/{name}")
-    fun getStockByName(@PathVariable name: String): ResponseEntity<List<NewStock>> {
-        val stock = newStockRepository.findOneByName(name)
+    fun getStockByName(@PathVariable name: String): ResponseEntity<Any> {
+        val stock = newStockRepository.findByName(name)
         return if (stock != null) {
             ResponseEntity.ok(stock)
         } else {
@@ -45,8 +45,8 @@ class StockController(
 
     // Get single stock by symbol
     @GetMapping("/symbol/{symbol}")
-    fun getStockBySymbol(@PathVariable symbol: String): ResponseEntity<List<NewStock>> {
-        val stock = newStockRepository.findOneBySymbol(symbol)
+    fun getStockBySymbol(@PathVariable symbol: String): ResponseEntity<Any> {
+        val stock = newStockRepository.findBySymbol(symbol)
         return if (stock != null) {
             ResponseEntity.ok(stock)
         } else {
@@ -65,7 +65,7 @@ class StockController(
     // Get total quantity of single stock by symbol
     @GetMapping("/quantity/{symbol}")
     fun getStockValueBySymbol(@PathVariable symbol: String): ResponseEntity<BigDecimal> {
-        val totalQuantity = newStockRepository.findBySymbol(name).sumOf{ it.quantity }
+        val totalQuantity = newStockRepository.findBySymbol(symbol).sumOf{ it.quantity }
         return ResponseEntity.ok(totalQuantity)
     }
 

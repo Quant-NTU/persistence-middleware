@@ -34,7 +34,7 @@ class NewCryptoController(
 
     // Get single crypto by name
     @GetMapping("/name/{name}")
-    fun getCryptoByName(@PathVariable name: String): ResponseEntity<List<NewCrypto>> {
+    fun getCryptoByName(@PathVariable name: String): ResponseEntity<Any> {
         val crypto = newCryptoRepository.findByName(name)
         return if (crypto != null) {
             ResponseEntity.ok(crypto)
@@ -45,7 +45,7 @@ class NewCryptoController(
 
     // Get single crypto by symbol
     @GetMapping("/symbol/{symbol}")
-    fun getCryptoBySymbol(@PathVariable symbol: String): ResponseEntity<List<NewCrypto>> {
+    fun getCryptoBySymbol(@PathVariable symbol: String): ResponseEntity<Any> {
         val crypto = newCryptoRepository.findBySymbol(symbol)
         return if (crypto != null) {
             ResponseEntity.ok(crypto)
@@ -65,7 +65,7 @@ class NewCryptoController(
     // Get total quantity of single crypto by symbol
     @GetMapping("/quantity/{symbol}")
     fun getCryptoValueBySymbol(@PathVariable symbol: String): ResponseEntity<BigDecimal> {
-        val totalQuantity = newCryptoRepository.findBySymbol(name).sumOf{ it.quantity }
+        val totalQuantity = newCryptoRepository.findBySymbol(symbol).sumOf{ it.quantity }
         return ResponseEntity.ok(totalQuantity)
     }
 

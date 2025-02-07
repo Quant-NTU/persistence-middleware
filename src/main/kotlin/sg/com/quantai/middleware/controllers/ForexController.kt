@@ -34,8 +34,8 @@ class ForexController(
 
     // Get single forex by name
     @GetMapping("/name/{name}")
-    fun getForexByName(@PathVariable name: String): ResponseEntity<List<Forex>> {
-        val forex = newForexRepository.findOneByName(name)
+    fun getForexByName(@PathVariable name: String): ResponseEntity<Any> {
+        val forex = newForexRepository.findByName(name)
         return if (forex != null) {
             ResponseEntity.ok(forex)
         } else {
@@ -45,8 +45,8 @@ class ForexController(
 
     // Get single forex by symbol
     @GetMapping("/symbol/{symbol}")
-    fun getForexBySymbol(@PathVariable symbol: String): ResponseEntity<List<Forex>> {
-        val forex = newForexRepository.findOneBySymbol(symbol)
+    fun getForexBySymbol(@PathVariable symbol: String): ResponseEntity<Any> {
+        val forex = newForexRepository.findBySymbol(symbol)
         return if (forex != null) {
             ResponseEntity.ok(forex)
         } else {
@@ -65,7 +65,7 @@ class ForexController(
     // Get total quantity of single forex by symbol
     @GetMapping("/quantity/{symbol}")
     fun getForexValueBySymbol(@PathVariable symbol: String): ResponseEntity<BigDecimal> {
-        val totalQuantity = newForexRepository.findBySymbol(name).sumOf{ it.quantity }
+        val totalQuantity = newForexRepository.findBySymbol(symbol).sumOf{ it.quantity }
         return ResponseEntity.ok(totalQuantity)
     }
 

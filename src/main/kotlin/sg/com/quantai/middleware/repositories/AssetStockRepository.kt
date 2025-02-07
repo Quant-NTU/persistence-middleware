@@ -5,7 +5,7 @@ import org.bson.types.ObjectId
 import org.springframework.data.mongodb.repository.MongoRepository
 
 interface AssetStockRepository : MongoRepository<NewStock, String> {
-    fun findOneByUid(uid: String): NewStock
+    fun findByUid(uid: String): NewStock
     fun findByName(name: String): List<NewStock>
     fun findBySymbol(symbol: String): List<NewStock>
     fun deleteByUid(uid: String)
