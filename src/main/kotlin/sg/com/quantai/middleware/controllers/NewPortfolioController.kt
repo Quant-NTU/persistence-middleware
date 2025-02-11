@@ -23,12 +23,9 @@ class NewPortfolioController(
 
     @GetMapping("/user/{user_id}")
     fun getAllPortfoliosByUser(@PathVariable("user_id") userId: String): ResponseEntity<List<NewPortfolio>> {
-        val user: User? = userRepository.findOneByUid(userId)
-
-        return user?.let {
-            val portfolios = portfolioRepository.findByOwner(it)
-            ResponseEntity.ok(portfolios)
-        } ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        val user = userRepository.findOneByUid(userId)
+        val userPortfolios = portfolioRepository.findByOwner(user)
+        return ResponseEntity.ok(userPortfolios)
     }
 
 }
