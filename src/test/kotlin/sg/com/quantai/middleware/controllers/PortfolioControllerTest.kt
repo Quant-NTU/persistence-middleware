@@ -2,8 +2,6 @@ package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.*
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
-import sg.com.quantai.middleware.requests.PortfolioRequest
 import java.math.BigDecimal
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach

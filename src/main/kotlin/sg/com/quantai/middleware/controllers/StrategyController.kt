@@ -81,22 +81,6 @@ class StrategyController(
         // TODO: Return error if user and strategy doesn't match
     }
 
-// TODO: Deprecated
-//    @GetMapping("/count")
-//    fun countStrategies(): ResponseEntity<Map<String, Long>> {
-//        val activeCount = strategiesRepository.countByStatus(StrategyStatus.ACTIVE)
-//        val inactiveCount = strategiesRepository.countByStatus(StrategyStatus.INACTIVE)
-//        val testingCount = strategiesRepository.countByStatus(StrategyStatus.TESTING)
-//
-//        val countMap = mapOf(
-//            "activeStrategies" to activeCount,
-//            "inactiveStrategies" to inactiveCount,
-//            "testingStrategies" to testingCount,
-//        )
-//
-//        return ResponseEntity.ok(countMap)
-//    }
-
     @PostMapping("/file/{user_id}", consumes=[MediaType.ALL_VALUE])
     fun saveFile(
         @RequestBody request: StrategyFileRequest,
@@ -198,57 +182,6 @@ class StrategyController(
         return ResponseEntity.noContent().build()
     }
 
-// TODO: Deprecated
-//    @PostMapping("/user/{user_id}/{strategy_id}", consumes = ["application/json"])
-//    fun updateStrategyTransactions(
-//        @PathVariable user_id: String,
-//        @PathVariable strategy_id: String,
-//        @RequestBody transactionRequests: List<TransactionRequest>
-//    ): ResponseEntity<*> {
-//
-//        val user = usersRepository.findOneByUid(user_id) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found") //FIXME: Elvis operator always returns the left operand of non-nullabel type User
-//        val strategy = strategiesRepository.findOneByUid(strategy_id) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Strategy not found") //FIXME: Elvis operator always returns the left operand of non-nullabel type User
-//        log.info("Updating strategy with transactions: $transactionRequests")
-//        val transactions = transactionRequests.mapNotNull { request ->
-//            // val crypto: Crypto? =  if (request.asset_type == "crypto") cryptoRepository.findOneBySymbol(symbol) else null
-//            val crypto: Crypto? =  request.crypto
-//
-//            val stock: Stock? = request.stock
-//
-//            val maxBuyPrice = when {
-//                request.maxBuyPrice != null && request.maxBuyPrice != "INF" -> BigDecimal(request.maxBuyPrice)
-//                request.maxBuyPrice == "INF" -> BigDecimal.valueOf(Long.MAX_VALUE) // Example logic for "INF"
-//                else -> null
-//            }
-//
-//            val minSellPrice = when {
-//                request.minSellPrice != null && request.minSellPrice != "0.00" -> BigDecimal(request.minSellPrice)
-//                request.minSellPrice == "0.00" -> BigDecimal.ZERO
-//                else -> null
-//            }
-//
-//            Transaction(
-//                crypto = crypto,
-//                stock = stock,
-//                quantity = request.quantity,
-//                price = request.price,
-//                type = request.type,
-//                strategy = strategy,
-//                strategyId = strategy?.uid, // FIXME: Unnecessary safe call on a non-null receiver of type Strategy
-//                owner = user,
-//                maxBuyPrice = maxBuyPrice,
-//                minSellPrice = minSellPrice,
-//                status = request.status
-//            )
-//        }
-//        log.info("Updating strategy with transactions: $transactions")
-//        strategy.transactions.clear() // Clear existing transactions if you need to replace them
-//        // Assume Strategy class has a mutable list to add transactions
-//        strategy.transactions.addAll(transactions)
-//        strategiesRepository.save(strategy)
-//
-//        return ResponseEntity.ok().body("Transactions updated for strategy ${strategy_id}")
-//    }
 }
     
     

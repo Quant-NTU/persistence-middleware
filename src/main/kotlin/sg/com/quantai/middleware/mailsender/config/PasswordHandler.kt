@@ -29,25 +29,22 @@ class EmailServiceImpl (private val javaMailSender: JavaMailSender) {
 
         // Try block to check for exceptions
         try {
+            val message: MimeMessage = javaMailSender.createMimeMessage();
+            val helper: MimeMessageHelper = MimeMessageHelper(message, true)
 
-        val message: MimeMessage = javaMailSender.createMimeMessage();
-        val helper: MimeMessageHelper = MimeMessageHelper(message, true)
+            val resetpassword_link = appProperties.link
+            var content = "$name have requested to reset your password. Your validation token is $token \n\n Please click the link below within 1 hour to reset password: \n"
+            content += resetpassword_link
 
-        val resetpassword_link = appProperties.link
-        var content = "$name have requested to reset your password. Your validation token is $token \n\n Please click the link below within 1 hour to reset password: \n"
-        content += resetpassword_link
+            helper.setFrom(InternetAddress(appProperties.user));
+            helper.setTo(InternetAddress(email));
+            helper.setSubject("Request for Password Reset");
+            helper.setText(content);
 
-        helper.setFrom(InternetAddress(appProperties.user));
-        helper.setTo(InternetAddress(email));
-        helper.setSubject("Request for Password Reset");
-        helper.setText(content);
-    
-        javaMailSender.send(message);
+            javaMailSender.send(message);
 
-        println("Success")
+            println("Success")
         }
-
-        // Catch block to handle the exceptions
         catch (e: Exception ) {
             //return "Error while Sending Mail";
             println("Fail with " + e)

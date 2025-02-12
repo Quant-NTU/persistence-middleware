@@ -714,12 +714,4 @@ class UserController(
         }
         return false
     }
-
-    // TODO
-    // Create transactions -> SHOULD NOT EXIST. FUNCTIONALITY MUST BE ENTERED VIA THE TRANSACTION
-    // CLASS
-    // Retrieve transactions -> should return List<Transaction>, which can be empty
-    // Update transactions -> SHOULD NOT EXIST. FUNCTIONALITY MUST BE ENTERED VIA THE TRANSACTION
-    // CLASS
-    // Delete transactiosn -> should delete all transactions and return an emptyu List<Transaction>
 }

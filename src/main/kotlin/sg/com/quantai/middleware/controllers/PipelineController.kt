@@ -3,7 +3,6 @@ package sg.com.quantai.middleware.controllers
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.data.Strategy
 import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
-import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.data.Pipeline
 import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
 import sg.com.quantai.middleware.requests.PipelineRequest
@@ -19,8 +18,7 @@ import org.springframework.web.bind.annotation.*
 class PipelineController(
     private val pipelineRepository: PipelineRepository,
     private val userRepository: UserRepository,
-    private val newStrategiesRepository: StrategyRepository,
-    private val portfolioRepository: PortfolioRepository,
+    private val newStrategiesRepository: StrategyRepository
 ) {
     private val log = LoggerFactory.getLogger(PipelineController::class.java)
 
