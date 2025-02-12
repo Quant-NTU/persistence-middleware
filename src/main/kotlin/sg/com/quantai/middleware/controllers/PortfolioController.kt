@@ -1,7 +1,6 @@
 package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
-import sg.com.quantai.middleware.repositories.mongo.TransactionRepository
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
