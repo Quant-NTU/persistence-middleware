@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.mongo
 
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl

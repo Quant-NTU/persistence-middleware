@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.mongo
 
 import java.time.LocalDateTime
 import sg.com.quantai.middleware.data.User

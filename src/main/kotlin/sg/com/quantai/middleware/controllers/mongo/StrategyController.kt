@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.mongo
 
 import sg.com.quantai.middleware.data.Strategy
 import sg.com.quantai.middleware.requests.StrategyFileRequest

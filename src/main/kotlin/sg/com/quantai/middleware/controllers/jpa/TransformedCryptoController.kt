@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.jpa
 
 import sg.com.quantai.middleware.data.TransformedCrypto
 import sg.com.quantai.middleware.services.TransformedCryptoService

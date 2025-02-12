@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.jpa
 
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*

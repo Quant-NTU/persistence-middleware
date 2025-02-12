@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.mongo
 
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
