@@ -9,8 +9,7 @@ import sg.com.quantai.middleware.repositories.mongo.TransactionRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.repositories.mongo.CryptoRepository
 import sg.com.quantai.middleware.repositories.mongo.StockRepository
-import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
-import java.math.BigDecimal 
+import java.math.BigDecimal
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -23,8 +22,7 @@ class TransactionController(
     private val transactionRepository: TransactionRepository,
     private val userRepository: UserRepository,
     private val cryptoRepository: CryptoRepository,
-    private val stockRepository: StockRepository,
-    private val strategyRepository: StrategyRepository
+    private val stockRepository: StockRepository
 ) {
     private val zmqContext = ZMQ.context(1)
     private val publisherSocket = zmqContext.socket(ZMQ.PUB)
@@ -72,17 +70,19 @@ class TransactionController(
         return ResponseEntity.ok(transactions)
     }
 
-    @GetMapping("strategy/{strategy_id}")
-    fun getAllTransactionsFromStrategy(
-        @PathVariable("strategy_id") strategy_id: String
-    ): ResponseEntity<List<Transaction>> {
-        val strategy = strategyRepository.findOneByUid(strategy_id)
-        if (strategy == null) {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
-        val transactions = transactionRepository.findByStrategy(strategy)
-        return ResponseEntity.ok(transactions)
-    }
+// TODO: Deprecated
+//
+//    @GetMapping("strategy/{strategy_id}")
+//    fun getAllTransactionsFromStrategy(
+//        @PathVariable("strategy_id") strategy_id: String
+//    ): ResponseEntity<List<Transaction>> {
+//        val strategy = strategyRepository.findOneByUid(strategy_id)
+//        if (strategy == null) {
+//            return ResponseEntity(HttpStatus.NOT_FOUND)
+//        }
+//        val transactions = transactionRepository.findByStrategy(strategy)
+//        return ResponseEntity.ok(transactions)
+//    }
 
     // Get a single transaction by id
     @GetMapping("/{uid}")
@@ -149,102 +149,104 @@ class TransactionController(
     }
 
     // Update transaction
-    @PutMapping("/{uid}")
-    fun updateTransaction(
-            @RequestBody request: TransactionRequest, 
-            @PathVariable("uid") uid: String
-    ): ResponseEntity<Transaction> {
-        val transaction = transactionRepository.findOneByUid(uid)
-        val strategy_id = request.strategyId
-        val strategy = if (strategy_id != null) strategyRepository.findOneByUid(strategy_id) else null
-        if (request.crypto == null && request.stock == null){
-            throw IllegalArgumentException("At least one type of asset must be specified")
-        }
-        val updatedTransaction =
-                transactionRepository.save(
-                        Transaction(
-                                crypto = request.crypto,
-                                stock = request.stock,
-                                quantity = request.quantity,
-                                price = request.price,
-                                type = request.type,
-                                owner = transaction.owner,
-                                strategy = request.strategy,
-                                strategyId = request.strategyId,
-                                status = request.status,
-                                createdDate = transaction.createdDate,
-                                updatedDate = LocalDateTime.now(),
-                                _id = transaction._id,
-                                uid = transaction.uid
-                        )
-                )
+// TODO: deprecated
+//    @PutMapping("/{uid}")
+//    fun updateTransaction(
+//            @RequestBody request: TransactionRequest,
+//            @PathVariable("uid") uid: String
+//    ): ResponseEntity<Transaction> {
+//        val transaction = transactionRepository.findOneByUid(uid)
+//        val strategy_id = request.strategyId
+//        val strategy = if (strategy_id != null) strategyRepository.findOneByUid(strategy_id) else null
+//        if (request.crypto == null && request.stock == null){
+//            throw IllegalArgumentException("At least one type of asset must be specified")
+//        }
+//        val updatedTransaction =
+//                transactionRepository.save(
+//                        Transaction(
+//                                crypto = request.crypto,
+//                                stock = request.stock,
+//                                quantity = request.quantity,
+//                                price = request.price,
+//                                type = request.type,
+//                                owner = transaction.owner,
+//                                strategy = request.strategy,
+//                                strategyId = request.strategyId,
+//                                status = request.status,
+//                                createdDate = transaction.createdDate,
+//                                updatedDate = LocalDateTime.now(),
+//                                _id = transaction._id,
+//                                uid = transaction.uid
+//                        )
+//                )
+//
+//        return ResponseEntity.ok(updatedTransaction)
+//    }
 
-        return ResponseEntity.ok(updatedTransaction)
-    }
-
+    // TODO: deprecated
     // Create transaction
-    @PostMapping("/user/{user_id}/{asset_type}/{asset_symbol}")
-    fun createTransaction(
-        @RequestBody request: TransactionRequest,
-        @PathVariable("user_id") user_id: String,
-        @PathVariable("asset_type") asset_type: String,
-        @PathVariable("asset_symbol") asset_symbol: String
-    ): ResponseEntity<Transaction> {
-        val user = userRepository.findOneByUid(user_id)
-        val crypto: Crypto? = if (asset_type == "crypto") cryptoRepository.findOneBySymbol(asset_symbol) else null
-        val stock: Stock? = if (asset_type == "stock") stockRepository.findOneBySymbol(asset_symbol) else null
-
-        if (crypto == null && stock == null) {
-            throw IllegalArgumentException("No asset found for symbol: $asset_symbol")
-        }
-        var maxBuyPrice: BigDecimal? = null
-        var minSellPrice: BigDecimal? = null
-        if (request.maxBuyPrice != null && request.maxBuyPrice != "INF") {
-            maxBuyPrice = BigDecimal(request.maxBuyPrice)
-        } else if (request.maxBuyPrice == "INF") {
-            maxBuyPrice = BigDecimal("10000000") // or any logic you use for "INF"
-        } else {
-            maxBuyPrice = request.price;
-        }
-        
-        if (request.minSellPrice != null && request.minSellPrice != "0.00") {
-            minSellPrice = BigDecimal(request.minSellPrice)
-        } else if (request.minSellPrice == "0.00") {
-            minSellPrice = BigDecimal("0.00") // Assuming this is the logic for "0.00"
-        } else {
-            minSellPrice = request.price;
-        }
-        
-        // Ensure at least one of them is not null
-        if (maxBuyPrice == null && minSellPrice == null) {
-            throw IllegalArgumentException("Either maxBuyPrice or minSellPrice must be provided.")
-        }
-
-
-        val strategy_id = request.strategyId        
-        val strategy = if (strategy_id != null) strategyRepository.findOneByUid(strategy_id) else null
-        if (crypto == null && stock == null){
-            throw IllegalArgumentException("At least one type of asset must be specified")
-        }
-        val transaction = 
-                transactionRepository.save(
-                        Transaction(
-                                crypto = crypto,
-                                stock = stock,
-                                price = request.price,
-                                quantity = request.quantity,
-                                maxBuyPrice = maxBuyPrice,
-                                minSellPrice = minSellPrice,
-                                type = request.type,
-                                owner = user,
-                                strategy = strategy,
-                                strategyId = strategy?.uid,
-                                status = request.status
-                        )
-                )
-
-        return ResponseEntity(transaction, HttpStatus.CREATED)
-    }
+//    @PostMapping("/user/{user_id}/{asset_type}/{asset_symbol}")
+//    fun createTransaction(
+//        @RequestBody request: TransactionRequest,
+//        @PathVariable("user_id") user_id: String,
+//        @PathVariable("asset_type") asset_type: String,
+//        @PathVariable("asset_symbol") asset_symbol: String
+//    ): ResponseEntity<Transaction> {
+//        val user = userRepository.findOneByUid(user_id)
+//        val crypto: Crypto? = if (asset_type == "crypto") cryptoRepository.findOneBySymbol(asset_symbol) else null
+//        val stock: Stock? = if (asset_type == "stock") stockRepository.findOneBySymbol(asset_symbol) else null
+//
+//        if (crypto == null && stock == null) {
+//            throw IllegalArgumentException("No asset found for symbol: $asset_symbol")
+//        }
+//        var maxBuyPrice: BigDecimal? = null
+//        var minSellPrice: BigDecimal? = null
+//        if (request.maxBuyPrice != null && request.maxBuyPrice != "INF") {
+//            maxBuyPrice = BigDecimal(request.maxBuyPrice)
+//        } else if (request.maxBuyPrice == "INF") {
+//            maxBuyPrice = BigDecimal("10000000") // or any logic you use for "INF"
+//        } else {
+//            maxBuyPrice = request.price;
+//        }
+//
+//        if (request.minSellPrice != null && request.minSellPrice != "0.00") {
+//            minSellPrice = BigDecimal(request.minSellPrice)
+//        } else if (request.minSellPrice == "0.00") {
+//            minSellPrice = BigDecimal("0.00") // Assuming this is the logic for "0.00"
+//        } else {
+//            minSellPrice = request.price;
+//        }
+//
+//        // Ensure at least one of them is not null
+//        if (maxBuyPrice == null && minSellPrice == null) {
+//            throw IllegalArgumentException("Either maxBuyPrice or minSellPrice must be provided.")
+//        }
+//
+//
+//        val strategy_id = request.strategyId
+//        val strategy = if (strategy_id != null) strategyRepository.findOneByUid(strategy_id) else null
+//        if (crypto == null && stock == null){
+//            throw IllegalArgumentException("At least one type of asset must be specified")
+//        }
+//        val transaction =
+//                transactionRepository.save(
+//                        Transaction(
+//                                crypto = crypto,
+//                                stock = stock,
+//                                price = request.price,
+//                                quantity = request.quantity,
+//                                maxBuyPrice = maxBuyPrice,
+//                                minSellPrice = minSellPrice,
+//                                type = request.type,
+//                                owner = user,
+//                                strategy = strategy,
+//                                strategyId = strategy?.uid,
+//                                status = request.status
+//                        )
+//                )
+//
+//        return ResponseEntity(transaction, HttpStatus.CREATED)
+//    }
 
     // Retrieve all transactions from a user
     @DeleteMapping("/user/{user_id}")

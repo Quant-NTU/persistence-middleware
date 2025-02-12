@@ -1,8 +1,8 @@
 package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import sg.com.quantai.middleware.data.NewStrategy
-import sg.com.quantai.middleware.repositories.mongo.NewStrategyRepository
+import sg.com.quantai.middleware.data.Strategy
+import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
 import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.data.Pipeline
 import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*
 class PipelineController(
     private val pipelineRepository: PipelineRepository,
     private val userRepository: UserRepository,
-    private val newStrategiesRepository: NewStrategyRepository,
+    private val newStrategiesRepository: StrategyRepository,
     private val portfolioRepository: PortfolioRepository,
 ) {
     private val log = LoggerFactory.getLogger(PipelineController::class.java)
@@ -54,7 +54,7 @@ class PipelineController(
         val user = userRepository.findOneByUid(user_id)
         // val portfolio = portfolioRepository.findOneByUid(request.portfolio_id)
 
-        var strategies = emptyList<NewStrategy>()
+        var strategies = emptyList<Strategy>()
 
         if (request.strategies_id.isNotBlank()) {
             val regex = """strategyId"\s*:\s*"([^"]+)""".toRegex()
@@ -115,7 +115,7 @@ class PipelineController(
             return ResponseEntity(HttpStatus.FORBIDDEN)
         }
 
-        var strategies = emptyList<NewStrategy>()
+        var strategies = emptyList<Strategy>()
 
         if (request.strategies_id.isNotBlank()) {
             val regex = """strategyId"\s*:\s*"([^"]+)""".toRegex()

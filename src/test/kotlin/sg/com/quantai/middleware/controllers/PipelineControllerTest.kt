@@ -2,10 +2,10 @@ package sg.com.quantai.middleware.controllers
 
 import sg.com.quantai.middleware.data.User
 import sg.com.quantai.middleware.data.Pipeline
-import sg.com.quantai.middleware.data.NewStrategy
+import sg.com.quantai.middleware.data.Strategy
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
-import sg.com.quantai.middleware.repositories.mongo.NewStrategyRepository
+import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
 import sg.com.quantai.middleware.requests.PipelineRequest
 
 import org.junit.jupiter.api.Assertions.*
@@ -31,7 +31,7 @@ class PipelineControllerTest
 @Autowired 
 constructor(
     private val pipelineRepository: PipelineRepository,
-    private val newStrategyRepository: NewStrategyRepository,
+    private val strategyRepository: StrategyRepository,
     private val userRepository: UserRepository,
     private val restTemplate: TestRestTemplate
 ) {
@@ -40,7 +40,7 @@ constructor(
     @BeforeEach
     fun setUp() {
         pipelineRepository.deleteAll()
-        newStrategyRepository.deleteAll()
+        strategyRepository.deleteAll()
         userRepository.deleteAll()
     }
 
@@ -50,14 +50,14 @@ constructor(
         title: String = "Test Pipeline",
         description: String = "This is a test pipeline",
         owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
-        strategies: List<NewStrategy> = listOf(
-            newStrategyRepository.save(NewStrategy(
+        strategies: List<Strategy> = listOf(
+            strategyRepository.save(Strategy(
                 title = "Strategy 1",
                 uid = "ID1",
                 path = "Path1",
                 owner = owner
             )),
-            newStrategyRepository.save(NewStrategy(
+            strategyRepository.save(Strategy(
                 title = "Strategy 2",
                 uid = "ID2",
                 path = "Path2",
@@ -243,7 +243,7 @@ constructor(
 
         assertEquals(pipelineRequest.title, response.body?.title)
         assertEquals(pipelineRequest.description, response.body?.description)
-        assertEquals(emptyList<NewStrategy>(), response.body?.strategies)
+        assertEquals(emptyList<Strategy>(), response.body?.strategies)
     }
 
     @Test
@@ -255,22 +255,22 @@ constructor(
         val pipeline = saveOnePipeline(owner=user)
         val pipelineId = pipeline.uid
 
-        val s1 = NewStrategy(
+        val s1 = Strategy(
             title = "Strategy new",
             uid = "IDnew",
             path = "Pathnew",
             owner = user
         )
 
-        val s2 = NewStrategy(
+        val s2 = Strategy(
             title = "Strategy new2",
             uid = "IDnew2",
             path = "Pathnew2",
             owner = user
         )
 
-        val strat_id = newStrategyRepository.save(s1).uid
-        val strat_id2 = newStrategyRepository.save(s2).uid
+        val strat_id = strategyRepository.save(s1).uid
+        val strat_id2 = strategyRepository.save(s2).uid
         val combinedStratIds = """[
         {"reactFlowId": "strategy-0", "strategyId":"$strat_id","prev":null,"next":"strategy-1"},
         {"reactFlowId": "strategy-1","strategyId":"$strat_id2","prev":"strategy-0","next":null},
@@ -320,22 +320,22 @@ constructor(
         val pipeline = saveOnePipeline(owner=user)
         val pipelineId = pipeline.uid
 
-        val s1 = NewStrategy(
+        val s1 = Strategy(
             title = "Strategy new",
             uid = "IDnew",
             path = "Pathnew",
             owner = user
         )
 
-        val s2 = NewStrategy(
+        val s2 = Strategy(
             title = "Strategy new2",
             uid = "IDnew2",
             path = "Pathnew2",
             owner = user
         )
 
-        val strat_id = newStrategyRepository.save(s1).uid
-        val strat_id2 = newStrategyRepository.save(s2).uid
+        val strat_id = strategyRepository.save(s1).uid
+        val strat_id2 = strategyRepository.save(s2).uid
         val combinedStratIds = """[
         {"reactFlowId": "strategy-0", "strategyId":"$strat_id","prev":null,"next":"strategy-1"},
         {"reactFlowId": "strategy-1","strategyId":"$strat_id2","prev":"strategy-0","next":"strategy-2"},

@@ -20,7 +20,7 @@ data class Pipeline (
     //Relationships columns
     @DBRef val owner: User,
     // @DBRef val portfolio: Portfolio,
-    @DBRef(lazy=true) val strategies: List<NewStrategy>? = emptyList<NewStrategy>(),
+    @DBRef(lazy=true) val strategies: List<Strategy>? = emptyList<Strategy>(),
     val portfolio: String? = "Temp String",
     val description: String? = null,
 ) 
