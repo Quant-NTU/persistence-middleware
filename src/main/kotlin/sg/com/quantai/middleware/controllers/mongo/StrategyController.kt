@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
 
+@RestController
 @RequestMapping("/strategies")
 class StrategyController(
     private val newStrategiesRepository: StrategyRepository,
