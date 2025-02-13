@@ -1,6 +1,6 @@
 package sg.com.quantai.middleware.services
 
-import sg.com.quantai.middleware.data.TransformedCrypto
+import sg.com.quantai.middleware.data.jpa.TransformedCrypto
 import sg.com.quantai.middleware.repositories.jpa.TransformedCryptoRepository
 import org.springframework.stereotype.Service
 import java.sql.Timestamp
