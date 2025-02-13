@@ -1,8 +1,8 @@
 package sg.com.quantai.middleware.controllers.mongo
 
-import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.data.Pipeline
-import sg.com.quantai.middleware.data.Strategy
+import sg.com.quantai.middleware.data.mongo.User
+import sg.com.quantai.middleware.data.mongo.Pipeline
+import sg.com.quantai.middleware.data.mongo.Strategy
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
 import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
@@ -26,7 +26,7 @@ import org.springframework.http.HttpMethod
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+//@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PipelineControllerTest 
 @Autowired 
 constructor(
@@ -51,18 +51,22 @@ constructor(
         description: String = "This is a test pipeline",
         owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
         strategies: List<Strategy> = listOf(
-            strategyRepository.save(Strategy(
+            strategyRepository.save(
+                Strategy(
                 title = "Strategy 1",
                 uid = "ID1",
                 path = "Path1",
                 owner = owner
-            )),
-            strategyRepository.save(Strategy(
+            )
+            ),
+            strategyRepository.save(
+                Strategy(
                 title = "Strategy 2",
                 uid = "ID2",
                 path = "Path2",
                 owner = owner
-            ))
+            )
+            )
         ),
         portfolio: String = "",
         // portfolio: Portfolio = portfolioRepository.save(

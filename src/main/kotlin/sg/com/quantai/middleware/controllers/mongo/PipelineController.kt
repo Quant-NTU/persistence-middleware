@@ -1,9 +1,9 @@
 package sg.com.quantai.middleware.controllers.mongo
 
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import sg.com.quantai.middleware.data.Strategy
+import sg.com.quantai.middleware.data.mongo.Strategy
 import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
-import sg.com.quantai.middleware.data.Pipeline
+import sg.com.quantai.middleware.data.mongo.Pipeline
 import sg.com.quantai.middleware.repositories.mongo.PipelineRepository
 import sg.com.quantai.middleware.requests.PipelineRequest
 

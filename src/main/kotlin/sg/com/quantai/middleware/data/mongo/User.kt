@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.data
+package sg.com.quantai.middleware.data.mongo
 
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.Id

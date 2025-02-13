@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.data
+package sg.com.quantai.middleware.data.jpa
 
 import jakarta.persistence.*
 import java.sql.Timestamp

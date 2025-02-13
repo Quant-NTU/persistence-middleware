@@ -1,11 +1,10 @@
 package sg.com.quantai.middleware.controllers.jpa
 
-import sg.com.quantai.middleware.data.TransformedCrypto
+import sg.com.quantai.middleware.data.jpa.TransformedCrypto
 import sg.com.quantai.middleware.services.TransformedCryptoService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
-@RestController
 @RequestMapping("/crypto/transformed")
 class TransformedCryptoController(private val service: TransformedCryptoService) {
 

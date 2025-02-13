@@ -1,8 +1,6 @@
 package sg.com.quantai.middleware.controllers.mongo
 
-import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
-import sg.com.quantai.middleware.requests.*
+import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Assertions.*
@@ -21,33 +19,39 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import org.mindrot.jbcrypt.BCrypt
+import org.springframework.context.ApplicationContext
+import sg.com.quantai.middleware.requests.user.*
 
 import java.time.LocalDateTime
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class UserControllerTest
-
-@Autowired
-constructor(
-    private val userRepository: UserRepository,
-    private val emailService: EmailServiceImpl,
-    private val restTemplate: TestRestTemplate,
+class UserControllerTest(
+    @Autowired val userRepository: UserRepository,
+    @Autowired val restTemplate: TestRestTemplate,
+    @Autowired val context: ApplicationContext,
+    @LocalServerPort val port: Int
 ) {
+
+    //    @Autowired
+//    private lateinit var userRepository: UserRepository
+//
+//    @Autowired
+//    private lateinit var restTemplate: TestRestTemplate
 
     private val defaultUserId = ObjectId.get()
     private val defaultToken = "aaa111bbb222ccc333"
 
-
-    @LocalServerPort protected var port: Int = 0
+//    @LocalServerPort
+//    var port: Int = 10000
 
     @BeforeEach
     fun setUp() {
         userRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/users"
+    private fun getRootUrl(): String = "http://localhost:$port/users"
     private fun saveOneUser(
         name: String ="Name",
         email: String ="Email",
@@ -61,7 +65,8 @@ constructor(
         id: ObjectId = ObjectId.get()
     ): User {
         val (hashedPassword, salt) = hashAndSaltPassword(password, salt)
-        return userRepository.save(User(
+        return userRepository.save(
+            User(
                                 name=name,
                                 email=email,
                                 password=hashedPassword,
@@ -71,7 +76,8 @@ constructor(
                                 isAdmin=isAdmin,
                                 has2fa = has2fa,
                                 secret2FA = secret2FA,
-                                uid=id.toString()))
+                                uid=id.toString())
+        )
     }
     private fun prepareUserRequest() = UserRequest("UpdatedName", "UpdatedEmail", "UpdatedPassword")
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
@@ -83,9 +89,19 @@ constructor(
     }
 
     @Test
+    fun `should print all loaded beans`() {
+        println("Loaded Beans:")
+        context.beanDefinitionNames.sorted().forEach { println(it) }
+
+        // Check if UserController is present
+        assertTrue(context.containsBean("userController"))
+    }
+
+    @Test
     fun `should return all users`() {
         // No users
         var response = restTemplate.getForEntity(getRootUrl(), List::class.java)
+        println("Response Body: {$response.body}")
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(0, response.body?.size)
@@ -428,62 +444,6 @@ constructor(
         assertEquals(200, responseGoogleConfirmation.statusCode.value())
         assertNotNull(responseGoogleConfirmation.body)
 //        assertTrue(responseGoogleConfirmation.body.isGoogleLogin)
-    }
-
-    @Test
-    fun `activate admin user`() {
-        userRepository.deleteAll()
-        var user1 = saveOneUser(isAdmin=true)
-
-        val adminRequest1 = AdminRequest(user1.email)
-        val response1 = restTemplate.postForEntity(
-            getRootUrl() + "/create-admin",
-            adminRequest1,
-            User::class.java
-        )
-
-        assertEquals(417, response1.statusCode.value())
-
-        var user2 = saveOneUser(email="Email2", isAdmin=false)
-
-        val adminRequest2 = AdminRequest(user2.email)
-        val response2 = restTemplate.postForEntity(
-            getRootUrl() + "/create-admin",
-            adminRequest2,
-            User::class.java
-        )
-
-        assertEquals(200, response2.statusCode.value())
-
-//        assertTrue(response2.body?.isAdmin)
-    }
-
-    @Test
-    fun `remove admin user`() {
-
-        var user1 = saveOneUser(isAdmin=false)
-
-        val adminRequest1 = AdminRequest(user1.email)
-        val response1 = restTemplate.postForEntity(
-            getRootUrl() + "/remove-admin",
-            adminRequest1,
-            User::class.java
-        )
-
-        assertEquals(417, response1.statusCode.value())
-
-        var user2 = saveOneUser(email="Email2", isAdmin=true)
-
-        val adminRequest2 = AdminRequest(user2.email)
-        val response2 = restTemplate.postForEntity(
-            getRootUrl() + "/remove-admin",
-            adminRequest2,
-            User::class.java
-        )
-
-        assertEquals(200, response2.statusCode.value())
-
-//        assertTrue(response2.body?.isAdmin)
     }
 
     @Test

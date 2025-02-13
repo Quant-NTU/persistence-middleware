@@ -2,7 +2,7 @@ package sg.com.quantai.middleware.services
 
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
-import sg.com.quantai.middleware.data.TransformedCrypto
+import sg.com.quantai.middleware.data.jpa.TransformedCrypto
 import sg.com.quantai.middleware.repositories.jpa.TransformedCryptoRepository
 import java.sql.Timestamp
 import kotlin.test.assertEquals

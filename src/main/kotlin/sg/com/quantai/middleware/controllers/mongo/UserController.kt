@@ -1,18 +1,18 @@
 package sg.com.quantai.middleware.controllers.mongo
 
 import java.time.LocalDateTime
-import sg.com.quantai.middleware.data.User
+import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import sg.com.quantai.middleware.requests.AuthenticationRequest
-import sg.com.quantai.middleware.requests.LoginRequest
-import sg.com.quantai.middleware.requests.NameEmailRequest
-import sg.com.quantai.middleware.requests.PasswordRequest
-import sg.com.quantai.middleware.requests.UserRequest
-import sg.com.quantai.middleware.requests.GoogleConfirmationRequest
-import sg.com.quantai.middleware.requests.AccountConfirmationRequest
-import sg.com.quantai.middleware.requests.AdminRequest
-import sg.com.quantai.middleware.requests.Enable2FARequest
-import sg.com.quantai.middleware.requests.UpdateSessionDurationRequest
+import sg.com.quantai.middleware.requests.user.AuthenticationRequest
+import sg.com.quantai.middleware.requests.user.LoginRequest
+import sg.com.quantai.middleware.requests.user.NameEmailRequest
+import sg.com.quantai.middleware.requests.user.PasswordRequest
+import sg.com.quantai.middleware.requests.user.UserRequest
+import sg.com.quantai.middleware.requests.user.GoogleConfirmationRequest
+import sg.com.quantai.middleware.requests.user.AccountConfirmationRequest
+import sg.com.quantai.middleware.requests.user.AdminRequest
+import sg.com.quantai.middleware.requests.user.Enable2FARequest
+import sg.com.quantai.middleware.requests.user.UpdateSessionDurationRequest
 import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -485,8 +485,8 @@ class UserController(
     // Update password
     @PutMapping("/reset-password/{uid}")
     fun updatePassword(
-            @RequestBody request: PasswordRequest,
-            @PathVariable("uid") uid: String
+        @RequestBody request: PasswordRequest,
+        @PathVariable("uid") uid: String
     ): ResponseEntity<User> {
         val user = usersRepository.findOneByUid(uid)
         val (hashedPassword, salt) = hashAndSaltPassword(request.newPassword, user.salt)

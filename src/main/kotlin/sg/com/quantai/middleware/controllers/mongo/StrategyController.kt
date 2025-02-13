@@ -1,6 +1,6 @@
 package sg.com.quantai.middleware.controllers.mongo
 
-import sg.com.quantai.middleware.data.Strategy
+import sg.com.quantai.middleware.data.mongo.Strategy
 import sg.com.quantai.middleware.requests.StrategyFileRequest
 import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
 
-@RestController
 @RequestMapping("/strategies")
 class StrategyController(
     private val newStrategiesRepository: StrategyRepository,

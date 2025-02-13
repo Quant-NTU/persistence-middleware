@@ -1,7 +1,7 @@
 package sg.com.quantai.middleware.repositories.mongo
 
-import sg.com.quantai.middleware.data.User
-import sg.com.quantai.middleware.data.Strategy
+import sg.com.quantai.middleware.data.mongo.User
+import sg.com.quantai.middleware.data.mongo.Strategy
 import org.springframework.data.mongodb.repository.MongoRepository
 
 interface StrategyRepository : MongoRepository<Strategy, String> {

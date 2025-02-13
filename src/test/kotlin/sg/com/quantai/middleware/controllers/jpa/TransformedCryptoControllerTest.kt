@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import sg.com.quantai.middleware.data.TransformedCrypto
+import sg.com.quantai.middleware.data.jpa.TransformedCrypto
 import sg.com.quantai.middleware.services.TransformedCryptoService
 import kotlin.test.assertEquals
 

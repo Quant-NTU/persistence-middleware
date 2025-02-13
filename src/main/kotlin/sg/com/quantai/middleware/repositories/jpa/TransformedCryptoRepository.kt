@@ -3,7 +3,7 @@ package sg.com.quantai.middleware.repositories.jpa
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
-import sg.com.quantai.middleware.data.TransformedCrypto
+import sg.com.quantai.middleware.data.jpa.TransformedCrypto
 import java.sql.Timestamp
 
 @Repository

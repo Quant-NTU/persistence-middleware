@@ -7,7 +7,6 @@ import reactor.core.publisher.Mono
 import org.springframework.beans.factory.annotation.Value
 import sg.com.quantai.middleware.exceptions.NewsArticleException
 
-@RestController
 @RequestMapping("/news_articles")
 class NewsArticleController {
 
