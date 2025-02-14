@@ -31,7 +31,7 @@ class NewPortfolioController(
         } ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 
-    //Might need to reconfigure to include name of portfolio based on US277 (A portfolio has a name (required) and a description (optional))
+    //Might need to reconfigure to include name of portfolio based on US277 (A portfolio has a name (required) and a description (optional)) but reconfig will be small
     @PostMapping("/{user_id}")
     fun createPortfolio(@PathVariable("user_id") userId: String, @RequestBody request: NewPortfolioRequest): ResponseEntity<NewPortfolio> {
         val user: User? = userRepository.findOneByUid(userId)
@@ -64,6 +64,51 @@ class NewPortfolioController(
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPortfolio)
     }
 
+    @PostMapping("/{user_id}/addAsset")
+    fun addAssetToPortfolio(@PathVariable("user_id") userId: String, @RequestBody request: AddAssetRequest): ResponseEntity<NewPortfolio> {
+        val user: User? = userRepository.findOneByUid(userId)
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
+
+        val portfolio = portfolioRepository.findByOwner(user).firstOrNull()
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        
+        //adding asset to portfolio depending on the type of asset
+        val asset: Asset = when (request.type) {
+            "crypto" -> NewCrypto(
+                name = request.name,
+                symbol = request.symbol,
+                quantity = request.quantity,
+                purchasePrice = request.purchasePrice
+            ).also { cryptoRepository.save(it) }
+            "stock" -> NewStock(
+                name = request.name,
+                symbol = request.symbol,
+                quantity = request.quantity,
+                purchasePrice = request.purchasePrice
+            ).also { stockRepository.save(it) }
+            else -> return ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
+        }
+
+        //Creating a portfolio history "add" record 
+        val newHistory = PortfolioHistory(
+            asset = asset,
+            action = PortfolioAction.ADD,
+            quantity = request.quantity,
+            value = request.purchasePrice.multiply(request.quantity),
+            owner = portfolio
+        )
+        portfolioHistoryRepository.save(newHistory)
+
+        val updatedPortfolio = portfolio.copy(
+            history = portfolio.history.orEmpty() + newHistory,
+            assets = portfolio.assets.orEmpty() + asset
+        )
+        portfolioRepository.save(updatedPortfolio)
+
+        return ResponseEntity.status(HttpStatus.OK).body(updatedPortfolio)
+    }
 
 }
 
