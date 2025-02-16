@@ -1,12 +1,12 @@
-package sg.com.quantai.middleware.data
+package sg.com.quantai.middleware.data.mongo
 
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.Id
 import java.math.BigDecimal
 import org.springframework.data.mongodb.core.mapping.DBRef
 import org.springframework.data.mongodb.core.mapping.Document
-import sg.com.quantai.middleware.data.Asset
-import sg.com.quantai.middleware.data.NewPortfolio
+import sg.com.quantai.middleware.data.mongo.Asset
+import sg.com.quantai.middleware.data.mongo.NewPortfolio
 
 enum class PortfolioAction { BUY, SELL, ADD, REMOVE }
 @Document(collection = "portfolioHistory")

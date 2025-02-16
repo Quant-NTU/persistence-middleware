@@ -1,6 +1,6 @@
-package sg.com.quantai.middleware.repositories
+package sg.com.quantai.middleware.repositories.mongo
 
-import sg.com.quantai.middleware.data.NewPortfolio
+import sg.com.quantai.middleware.data.mongo.NewPortfolio
 import sg.com.quantai.middleware.data.mongo.User
 import org.springframework.data.mongodb.repository.MongoRepository
 import org.bson.types.ObjectId
