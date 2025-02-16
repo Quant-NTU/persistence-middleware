@@ -31,7 +31,7 @@ class NewPortfolioController(
         } ?: ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 
-    //Might need to reconfigure to include name of portfolio based on US277 (A portfolio has a name (required) and a description (optional))
+    //Might need to reconfigure to include description of portfolio based on US277 description (optional))
     @PostMapping("/{user_id}")
     fun createPortfolio(@PathVariable("user_id") userId: String, @RequestBody request: NewPortfolioRequest): ResponseEntity<NewPortfolio> {
         val user: User? = userRepository.findOneByUid(userId)
@@ -46,6 +46,7 @@ class NewPortfolioController(
         //Create a default portfolio for the user if no default portfolio exists
         if (defaultPortfolio == null) {
             val newDefaultPortfolio = NewPortfolio(
+                name = "Main Portfolio", //Not sure if user should be allowed to edit this 
                 isMain = true,
                 owner = user,
                 uid = ObjectId.get().toString()
@@ -55,6 +56,7 @@ class NewPortfolioController(
 
         //Create a new portfolio that is not main based on the request
         val newPortfolio = NewPortfolio(
+            name = request.name,
             isMain = false,  
             owner = user,
             uid = ObjectId.get().toString()
@@ -63,7 +65,6 @@ class NewPortfolioController(
         val savedPortfolio = portfolioRepository.save(newPortfolio)
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPortfolio)
     }
-
 
 }
 
