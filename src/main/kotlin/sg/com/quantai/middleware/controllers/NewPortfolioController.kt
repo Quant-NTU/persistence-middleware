@@ -110,5 +110,45 @@ class NewPortfolioController(
         return ResponseEntity.status(HttpStatus.OK).body(updatedPortfolio)
     }
 
+    @DeleteMapping("/{portfolio_id}/removeAsset")
+    fun removeAssetFromPortfolio(@PathVariable("portfolio_id") portfolioId: String, @RequestBody request: RemoveAssetRequest): ResponseEntity<NewPortfolio> {
+        val portfolio = portfolioRepository.findByUid(portfolioId) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        val assetToRemove = portfolio.assets?.find { it.symbol == request.symbol }
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        //To check if the quantity to remove is valid to prevent negative
+        if (request.quantity > assetToRemove.quantity) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null)
+        }
+
+        val updatedAssetList = if (request.quantity == assetToRemove.quantity) {
+            portfolio.assets.filter { it.symbol != request.symbol } //Remove the asset entirely
+        } else {
+            portfolio.assets.map {
+                if (it.symbol == request.symbol) it.copy(quantity = it.quantity - request.quantity) else it
+            }
+        }
+
+        //Create a new addition to PortfolioHistory
+        val newHistory = PortfolioHistory(
+            asset = assetToRemove,
+            action = PortfolioAction.REMOVE,
+            quantity = request.quantity,
+            //To ensure we have a historical reference to calculate PnL later
+            value = assetToRemove.purchasePrice * request.quantity, 
+            owner = portfolio
+        )
+
+        val updatedPortfolio = portfolio.copy(
+            assets = updatedAssetList,
+            history = portfolio.history?.plus(newHistory)
+        )
+
+        portfolioRepository.save(updatedPortfolio)
+
+        return ResponseEntity.ok(updatedPortfolio)
+    }
+
 }
 
