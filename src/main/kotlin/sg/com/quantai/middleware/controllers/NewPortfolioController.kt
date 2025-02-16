@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*
 import sg.com.quantai.middleware.repositories.NewPortfolioRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 
-import sg.com.quantai.middleware.data.User
+import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.data.NewPortfolio
 import sg.com.quantai.middleware.requests.NewPortfolioRequest
 

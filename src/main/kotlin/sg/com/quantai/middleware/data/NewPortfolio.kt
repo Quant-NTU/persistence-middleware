@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.DBRef
 import sg.com.quantai.middleware.data.PortfolioHistory  
-import sg.com.quantai.middleware.data.User 
+import sg.com.quantai.middleware.data.mongo.User 
 
 @Document(collection = "newPortfolios")
 data class NewPortfolio(
