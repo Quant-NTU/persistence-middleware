@@ -3,8 +3,7 @@ import java.math.BigDecimal
 
 
 class NewPortfolioRequest(
-        val isMain: Boolean,
-        val assets: String,
+        val isMain: String,
         val description: String,
         val name: String,
 )
