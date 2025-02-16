@@ -1,7 +1,7 @@
 package sg.com.quantai.middleware.repositories.mongo
 
-import sg.com.quantai.middleware.data.Pipeline
-import sg.com.quantai.middleware.data.User
+import sg.com.quantai.middleware.data.mongo.Pipeline
+import sg.com.quantai.middleware.data.mongo.User
 import org.springframework.data.mongodb.repository.MongoRepository
 
 interface PipelineRepository : MongoRepository<Pipeline, String> {
