@@ -69,7 +69,7 @@ class StrategyController(
         val strategies = newStrategiesRepository.findByOwner(user)
 
         strategies.forEach{
-            val filePath = it.path // Assuming `script` represents the file path in S3
+            val filePath = it.path
             val strategyName = it.title
             val strategyUid = it.uid
 
