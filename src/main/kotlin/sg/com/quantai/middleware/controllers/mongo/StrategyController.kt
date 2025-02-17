@@ -22,11 +22,13 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
+import java.nio.charset.StandardCharsets
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/strategies")
 class StrategyController(
-    private val newStrategiesRepository: StrategyRepository,
+    private val strategiesRepository: StrategyRepository,
     private val usersRepository: UserRepository
 ) {
     @Value("\${quantai.temp.s3.path}") var tempDirectory: String = "temp" //FIXME: Use value from properties instead of hardcoded solution
@@ -42,7 +44,7 @@ class StrategyController(
     // Retrieve all strategies
     @GetMapping("")
     fun getAllStrategies(): ResponseEntity<List<Strategy>> {
-        val strategies = newStrategiesRepository.findAll()
+        val strategies = strategiesRepository.findAll()
         return ResponseEntity.ok(strategies)
     }
 
@@ -52,7 +54,7 @@ class StrategyController(
         @PathVariable("user_id") userId: String
     ) : ResponseEntity<List<Strategy>>? {
         val user = usersRepository.findOneByUid(userId)
-        val strategies = newStrategiesRepository.findByOwner(user)
+        val strategies = strategiesRepository.findByOwner(user)
 
         strategies.forEach{
             val filePath = it.path
@@ -75,7 +77,7 @@ class StrategyController(
         @PathVariable("strategy_id") strategy_id: String
     ) : ResponseEntity<Strategy> {
         // val user = usersRepository.findOneByUid(user_id)
-        val strategy = newStrategiesRepository.findOneByUid(strategy_id)
+        val strategy = strategiesRepository.findOneByUid(strategy_id)
         return ResponseEntity.ok(strategy)
         // if (user == strategy.owner) return ResponseEntity.ok(strategy)
         // TODO: Return error if user and strategy doesn't match
@@ -87,7 +89,7 @@ class StrategyController(
         @PathVariable("user_id") userId: String
     ) : ResponseEntity<Strategy> {
         // Log Post Request
-        log.info("Received POST quest with file payload: {}", request)
+        log.info("Received POST request with file payload: {}", request)
 
         // Retrieve user information
         val user = usersRepository.findOneByUid(userId)
@@ -96,70 +98,168 @@ class StrategyController(
         // Create temp dir, if it doesn't exist
         Files.createDirectories(tempStoragePath)
 
-        // Prepare temp file
-        val filenameTimestamp = "" + System.currentTimeMillis()
-        val filename = "$filenameTimestamp.py"
-        val file = File("$tempStoragePath/$filename")
-        file.writeText(request.content)
+        // Check if strategy with this UID already exists
+        var existingStrategy = strategiesRepository.findOneByUid(request.uid)
+        val response: Strategy
+        val filename: String
 
-        // Prepare upload path
-        val path = "$s3StrategyScriptsFolder/$uid"
+        if (existingStrategy != null) {
+            // Update the existing strategy
+            log.info("Updating existing strategy with uid: {}", request.uid)
 
-        // Build HTTP Request Body
-        val builder = MultipartBodyBuilder()
-        builder.part("path", path)
-        builder.part("file", File("$tempStoragePath/$filename").readBytes())
-               .header("Content-Disposition", "form-data; name=file; filename=$filename")
+            // Extract the existing filename
+            filename = existingStrategy.path.substringAfterLast("/")
 
-        // Send HTTP Post Request
-        val uploadResponse = s3WebClient()
-                                .post()
-                                .uri("")
-                                .contentType(MediaType.MULTIPART_FORM_DATA)
-                                .body(BodyInserters.fromMultipartData(builder.build()))
-                                .retrieve()
-                                .toEntity(String::class.java)
-                                .block()
+            // Define the paths for the original and backup files
+            val originalFilePath = "$s3StrategyScriptsFolder/$uid/$filename"
+            val backupFilePath = "$s3StrategyScriptsFolder/$uid/${filename}.bak"
 
-        // Delete temp file
-        file.delete()
+            // Rename the original file to a .bak file in S3
+            val renameResponse = s3WebClient()
+                .put()
+                .uri { builder ->
+                    builder.path("/rename")
+                        .queryParam("currentPath", originalFilePath)
+                        .queryParam("newPath", backupFilePath)
+                        .build()
+                }
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
 
-        // Check if upload is successful
-        if (uploadResponse?.statusCode != HttpStatus.OK) {
-            return ResponseEntity(uploadResponse!!.statusCode)
+            if (renameResponse?.statusCode != HttpStatus.OK) {
+                log.error("Failed to back up the original file: $originalFilePath to $backupFilePath")
+                return ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR)
+            }
+
+            log.info("Backed up original file to: $backupFilePath")
+
+            // Write new content to a temp file
+            val tempFile = File("$tempStoragePath/$filename")
+            tempFile.writeText(request.content)
+
+            // Upload the new content to S3
+            val path = "$s3StrategyScriptsFolder/$uid"
+            val builder = MultipartBodyBuilder()
+            builder.part("path", path)
+            builder.part("file", tempFile.readBytes())
+                .header("Content-Disposition", "form-data; name=file; filename=$filename")
+
+            val uploadResponse = s3WebClient()
+                .post()
+                .uri("")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(BodyInserters.fromMultipartData(builder.build()))
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
+
+            // Check if the upload was successful
+            if (uploadResponse?.statusCode != HttpStatus.OK) {
+                log.error("Upload failed, restoring backup file")
+                s3WebClient()
+                    .put()
+                    .uri { builder ->
+                        builder.path("/rename")
+                            .queryParam("currentPath", originalFilePath)
+                            .queryParam("newPath", backupFilePath)
+                            .build()
+                    }
+                    .retrieve()
+                    .toEntity(String::class.java)
+                    .block()
+                return ResponseEntity(uploadResponse!!.statusCode)
+            }
+
+            log.info("Uploaded new file to: $path/$filename")
+
+            // Delete temp file after successful upload
+            tempFile.delete()
+
+            // Delete the backup file as the new file is successfully uploaded
+            val deleteBackupFileResponse = s3WebClient()
+                .delete()
+                .uri("?path=$backupFilePath")
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
+
+            if (deleteBackupFileResponse?.statusCode != HttpStatus.OK) {
+                log.error("Failed to delete backup file: {}", backupFilePath)
+            }
+
+            // Update strategy details and save to the database
+            existingStrategy.title = request.title
+            existingStrategy.updatedDate = LocalDateTime.now()
+            response = strategiesRepository.save(existingStrategy)
+
+        } else {
+            // Create a new strategy
+            log.info("Creating a new strategy with uid: {}", request.uid)
+
+            // Generate a new unique filename with the timestamp
+            val filenameTimestamp = System.currentTimeMillis().toString()
+            val filename = "$filenameTimestamp.py"
+            val tempFile = File("$tempStoragePath/$filename")
+            tempFile.writeText(request.content)
+
+            // Prepare upload path
+            val path = "$s3StrategyScriptsFolder/$uid"
+            val builder = MultipartBodyBuilder()
+            builder.part("path", path)
+            builder.part("file", tempFile.readBytes())
+                .header("Content-Disposition", "form-data; name=file; filename=$filename")
+
+            val uploadResponse = s3WebClient()
+                .post()
+                .uri("")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(BodyInserters.fromMultipartData(builder.build()))
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
+
+            // Check if the upload was successful
+            if (uploadResponse?.statusCode != HttpStatus.OK) {
+                return ResponseEntity(uploadResponse!!.statusCode)
+            }
+
+            // Delete temp file after successful upload
+            tempFile.delete()
+
+            // Save the new strategy in the database
+            response = strategiesRepository.save(
+                Strategy(
+                    title = request.title,
+                    uid = filenameTimestamp,  // Use the original UID
+                    path = "$path/$filename",  // Save the path of the file
+                    owner = user,
+                )
+            )
         }
 
-        // Save file path information in the database
-        val scriptPath = "$path/$filename"
-        val response: Strategy = newStrategiesRepository.save(
-            Strategy(
-                title = request.title,
-                uid = filenameTimestamp,
-                path = scriptPath,
-                owner = user,
-            )
-        )
-
+        // Set the content and return the response
         response.content = request.content
-
         return ResponseEntity.ok(response)
     }
 
+
+    // Delete a strategy from a user (Could be "delete a strategy, but we will put the user as a security measure")
     @DeleteMapping("/user/{user_id}/{uid}")
     fun deleteStrategyFromUser(
         @PathVariable("user_id") user_id: String,
         @PathVariable("uid") uid: String
     ) : ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(user_id)
-        val strategy = newStrategiesRepository.findOneByUid(uid)
+        val strategy = strategiesRepository.findOneByUid(uid)
         if (strategy == null) {
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
 
         // Check if there is a backup strategy named uid.bak 
-        val backup: Strategy? = newStrategiesRepository.findOneByUid("$uid.bak")
+        val backup: Strategy? = strategiesRepository.findOneByUid("$uid.bak")
         if (backup != null) {
-            newStrategiesRepository.deleteByUid("$uid.bak")
+            strategiesRepository.deleteByUid("$uid.bak")
         }
         
         if (strategy.owner.uid == user.uid) {
@@ -175,7 +275,7 @@ class StrategyController(
                 return ResponseEntity(deleteResponse!!.statusCode)
             }
 
-            newStrategiesRepository.deleteByUid(strategy.uid)
+            strategiesRepository.deleteByUid(strategy.uid)
             
             return ResponseEntity.ok().body("Deleted strategy ${uid}")
         }
