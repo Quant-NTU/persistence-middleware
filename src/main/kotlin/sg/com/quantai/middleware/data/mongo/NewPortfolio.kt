@@ -18,6 +18,10 @@ data class NewPortfolio(
     val description: String,
     val name: String,
 
+    // Timestamps columns
+    val createdDate: LocalDateTime = LocalDateTime.now(),
+    val updatedDate: LocalDateTime = LocalDateTime.now(),
+
     @DBRef val owner: User,
     @DBRef val history: List<PortfolioHistory>? = emptyList<PortfolioHistory>(),    
     @DBRef val assets: List<Asset>? = emptyList<Asset>(),
