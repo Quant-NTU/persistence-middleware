@@ -1,34 +1,27 @@
 
-import sg.com.quantai.middleware.repositories.mongo.NewPortfolioRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.data.mongo.User
-import sg.com.quantai.middleware.data.mongo.NewPortfolio
-import sg.com.quantai.middleware.requests.NewPortfolioRequest
+import sg.com.quantai.middleware.data.mongo.Portfolio
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import java.time.LocalDateTime
 import org.mindrot.jbcrypt.BCrypt
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpMethod
 
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
-//@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PortfolioControllerTest 
 @Autowired 
 constructor(
-    private val portfolioRepository: NewPortfolioRepository,
+    private val portfolioRepository: PortfolioRepository,
     private val userRepository: UserRepository,
     private val restTemplate: TestRestTemplate
 
@@ -41,7 +34,7 @@ constructor(
         userRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/newPortfolios"
+    private fun getRootUrl(): String? = "http://localhost:$port/portfolios"
     
     private fun saveOnePortfolio(
         name: String = "Test",
@@ -50,7 +43,7 @@ constructor(
         owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
     )=  
         portfolioRepository.save(
-            NewPortfolio(   
+            Portfolio(
                 name = name,
                 description = description,
                 isMain = isMain,

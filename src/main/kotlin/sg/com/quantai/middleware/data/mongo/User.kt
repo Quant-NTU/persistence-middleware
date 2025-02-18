@@ -9,10 +9,10 @@ import java.math.BigDecimal
 
 @Document(collection = "users")
 data class User (
-    // Database columns
+    // Id columns
     @Id val _id: ObjectId = ObjectId.get(), // document id, it changes when updated via upsert
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),
-    // Id columns
+    // Database columns
     val name: String,
     val email: String,
     val password: String? = null,
