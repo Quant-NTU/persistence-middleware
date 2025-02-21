@@ -18,7 +18,7 @@ data class Strategy (
     var path: String,
     // Timestamps columns
     val createdDate: LocalDateTime = LocalDateTime.now(),
-    var updatedDate: LocalDateTime = LocalDateTime.now(),  // Changed from val to var
+    var updatedDate: LocalDateTime = LocalDateTime.now(),
     // Relationships columns
     @DBRef val owner: User,
 ) {
