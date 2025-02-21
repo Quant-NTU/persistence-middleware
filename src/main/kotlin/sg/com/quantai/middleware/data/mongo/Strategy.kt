@@ -10,10 +10,10 @@ import org.springframework.data.mongodb.core.mapping.Document
 
 @Document(collection = "strategies")
 data class Strategy (
-    // Database columns
+    // Id columns
     @Id val _id: ObjectId = ObjectId.get(), // document id, it changes when updated via upsert
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),
-    // Columns
+    // Database columns
     var title: String,
     var path: String,
     // Timestamps columns
