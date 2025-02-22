@@ -11,7 +11,7 @@ import sg.com.quantai.middleware.data.User
 @Document(collection = "newPortfolios")
 data class NewPortfolio(
     @Id val id: ObjectId = ObjectId.get(),
-    @ val name: String,
+    val name: String,
     val isMain: Boolean,
     
     @DBRef val owner: User,
