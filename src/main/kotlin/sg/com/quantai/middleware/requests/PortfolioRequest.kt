@@ -1,11 +1,10 @@
 package sg.com.quantai.middleware.requests
-
 import java.math.BigDecimal
 
-class PortfolioRequest(
-        val symbol: String,
+
+class NewPortfolioRequest(
+        val isMain: Boolean,
         val name: String,
-        val quantity: BigDecimal,
-        val price: BigDecimal,
-        val platform: String
+        val assets: String,
+        val history: String,
 )

@@ -6,7 +6,7 @@ import java.math.BigDecimal
 import org.springframework.data.mongodb.core.mapping.DBRef
 import org.springframework.data.mongodb.core.mapping.Document
 import sg.com.quantai.middleware.data.Asset
-import sg.com.quantai.middleware.data.NewPortfolio
+import sg.com.quantai.middleware.data.Portfolio
 
 enum class PortfolioAction { BUY, SELL, ADD, REMOVE }
 @Document(collection = "portfolioHistory")
@@ -18,7 +18,7 @@ data class PortfolioHistory(
     val quantity: BigDecimal,
     val value: BigDecimal,
 
-    @DBRef(lazy=true) val owner: NewPortfolio,
+    @DBRef(lazy=true) val owner: Portfolio,
 
     @Id
     val _id: ObjectId = ObjectId.get()
