@@ -54,24 +54,12 @@ class StrategyController(
     fun getAllStrategiesFromUser(
         @PathVariable("user_id") userId: String,
         request: HttpServletRequest
-<<<<<<< HEAD
     ) : ResponseEntity<List<Strategy>>? {
-=======
-<<<<<<< HEAD
-    ) : ResponseEntity<List<NewStrategy>>? {
-=======
-    ) : ResponseEntity<List<Strategy>>? {
->>>>>>> a6b8e87 (Handle conflict merge)
->>>>>>> 4015a59 (Handle conflict merge)
         val user = usersRepository.findOneByUid(userId)
         val strategies = strategiesRepository.findByOwner(user)
 
         strategies.forEach{
-<<<<<<< HEAD
             val filePath = it.path
-=======
-            val filePath = it.path // Assuming `script` represents the file path in S3
->>>>>>> a6b8e87 (Handle conflict merge)
             val strategyName = it.title
             val strategyUid = it.uid
 
