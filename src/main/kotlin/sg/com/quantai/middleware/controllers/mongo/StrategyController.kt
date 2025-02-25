@@ -1,10 +1,12 @@
 package sg.com.quantai.middleware.controllers.mongo
 
+import jakarta.servlet.http.HttpServletRequest
 import sg.com.quantai.middleware.data.mongo.Strategy
 import sg.com.quantai.middleware.requests.StrategyFileRequest
 import sg.com.quantai.middleware.repositories.mongo.StrategyRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import java.io.File
+import java.math.BigDecimal
 import java.nio.file.Files
 import java.nio.file.Paths
 import org.slf4j.LoggerFactory
@@ -22,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
-import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 
 @RestController
@@ -51,19 +52,32 @@ class StrategyController(
     // Retrieve all strategies from a user
     @GetMapping("/user/{user_id}")
     fun getAllStrategiesFromUser(
-        @PathVariable("user_id") userId: String
+        @PathVariable("user_id") userId: String,
+        request: HttpServletRequest
     ) : ResponseEntity<List<Strategy>>? {
         val user = usersRepository.findOneByUid(userId)
         val strategies = strategiesRepository.findByOwner(user)
 
         strategies.forEach{
             val filePath = it.path
+            val strategyName = it.title
+            val strategyUid = it.uid
+
+            // Call to S3 service with additional logging parameters
             val response = s3WebClient()
-                                .get()
-                                .uri("?path=$filePath")
-                                .retrieve()
-                                .toEntity(String::class.java)
-                                .block()
+                .get()
+                .uri { builder ->
+                    builder
+                        .path("/") // Calls the root URL as per @GetMapping("")
+                        .queryParam("path", filePath)
+                        .queryParam("userId", userId)
+                        .queryParam("strategyName", strategyName)
+                        .build()
+                }
+                .header("X-User-IP", request.remoteAddr) // Passing the IP address in the header
+                .retrieve()
+                .toEntity(String::class.java)
+                .block()
 
             it.content = response!!.body
         }
@@ -283,7 +297,3 @@ class StrategyController(
     }
 
 }
-    
-    
-
-    
