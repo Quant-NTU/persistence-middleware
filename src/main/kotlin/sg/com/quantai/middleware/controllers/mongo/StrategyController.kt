@@ -59,25 +59,25 @@ class StrategyController(
         val strategies = strategiesRepository.findByOwner(user)
 
         strategies.forEach{
-            val filePath = it.path
-            val strategyName = it.title
-            val strategyUid = it.uid
+        val filePath = it.path
+        val strategyName = it.title
+        val strategyUid = it.uid
 
-            // Call to S3 service with additional logging parameters
-            val response = s3WebClient()
-                .get()
-                .uri { builder ->
-                    builder
-                        .path("/") // Calls the root URL as per @GetMapping("")
-                        .queryParam("path", filePath)
-                        .queryParam("userId", userId)
-                        .queryParam("strategyName", strategyName)
-                        .build()
-                }
-                .header("X-User-IP", request.remoteAddr) // Passing the IP address in the header
-                .retrieve()
-                .toEntity(String::class.java)
-                .block()
+        // Call to S3 service with additional logging parameters
+        val response = s3WebClient()
+            .get()
+            .uri { builder ->
+                builder
+                    .path("/") // Calls the root URL as per @GetMapping("")
+                    .queryParam("path", filePath)
+                    .queryParam("userId", userId)
+                    .queryParam("strategyName", strategyName)
+                    .build()
+            }
+            .header("X-User-IP", request.remoteAddr) // Passing the IP address in the header
+            .retrieve()
+            .toEntity(String::class.java)
+            .block()
 
             it.content = response!!.body
         }
