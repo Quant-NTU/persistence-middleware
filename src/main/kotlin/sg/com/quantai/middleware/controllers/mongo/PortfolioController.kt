@@ -11,6 +11,7 @@ import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.data.mongo.Portfolio
 import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.requests.PortfolioRequest
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/portfolios")
@@ -60,4 +61,29 @@ class PortfolioController(
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPortfolio)
     }
 
+    @PatchMapping("/{user_id}/{portfolio_id}")
+    fun updatePortfolio(
+        @PathVariable("user_id") userId: String,
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: PortfolioRequest
+    ) : ResponseEntity<Portfolio> {
+        val user: User = userRepository.findOneByUid(userId)
+        val portfolio: Portfolio = portfolioRepository.findOneByUidAndOwner(portfolioId, user)
+
+        val savedPortfolio = portfolioRepository.save(
+            Portfolio(
+                _id = portfolio._id,
+                uid = portfolio.uid,
+                main = portfolio.main,
+                description = request.description,
+                name = request.name,
+                createdDate = portfolio.createdDate,
+                updatedDate = LocalDateTime.now(),
+                owner = user,
+                history = portfolio.history,
+                assets = portfolio.assets
+            )
+        )
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedPortfolio)
+    }
 }
