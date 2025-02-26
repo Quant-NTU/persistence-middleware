@@ -55,10 +55,9 @@ class StrategyController(
         val strategies = newStrategiesRepository.findByOwner(user)
 
         strategies.forEach{
-            val filePath = it.path
             val response = s3WebClient()
                                 .get()
-                                .uri("?path=$filePath")
+                                .uri("?path=${it.path}&userId=${it.owner.uid}&strategyName=${it.title}")
                                 .retrieve()
                                 .toEntity(String::class.java)
                                 .block()

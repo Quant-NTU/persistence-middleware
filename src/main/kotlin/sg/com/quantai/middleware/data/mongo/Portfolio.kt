@@ -13,7 +13,7 @@ data class Portfolio(
     @Id val _id: ObjectId = ObjectId.get(), 
     @Indexed(unique = true) val uid: String = ObjectId.get().toString(),
     // Database columns
-    val isMain: Boolean,
+    val main: Boolean = false,
     val description: String,
     val name: String,
     // Timestamps columns
