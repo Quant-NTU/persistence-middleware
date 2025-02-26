@@ -53,7 +53,27 @@ By using the HTTP POST endpoint `strategies/user/{user_id}`, where `{user_id}` r
 
 The JSON response is automatically fed with the content of each Strategy Python Script.
 
+Additional request parameters, user's IP address is passed as well for logging purposes when an error occurs
+
 ### Updating a Strategy Script
+To update an existing strategy script, the microservice uses the HTTP POST endpoint `/file/{user_id}`, where `{user_id}` is the ID of the logged-in user. The process checks whether a strategy with the specified `uid` already exists. If it does, the current version of the file is backed up as `{filename}.bak` in S3. The script content is then updated with the new version provided in the request. Upon a successful update, the backup file is deleted. If the update fails, the backup file is restored to its original state.
+
+### Steps for Updating:
+1. **Check if the strategy exists**:
+    - If the strategy exists, extract its filename from the `path`.
+
+2. **Back up the existing file**:
+    - The original file in S3 is renamed to a `.bak` version using the `renameS3File` function. This backs up the file in case of upload failure.
+
+3. **Upload the new content**:
+    - The new strategy script is uploaded to S3.
+
+4. **Handle success or failure**:
+    - If the upload is successful, the `.bak` file is deleted.
+    - If the upload fails, the original file is restored from the `.bak` backup.
+
+5. **Update the strategy in the database**:
+    - The strategy details, such as title and update timestamp, are updated in the database.
 
 ### Deleting a Strategy Script
 

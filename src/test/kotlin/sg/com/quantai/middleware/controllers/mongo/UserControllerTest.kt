@@ -34,17 +34,10 @@ class UserControllerTest(
     @LocalServerPort val port: Int
 ) {
 
-    //    @Autowired
-//    private lateinit var userRepository: UserRepository
-//
-//    @Autowired
-//    private lateinit var restTemplate: TestRestTemplate
 
     private val defaultUserId = ObjectId.get()
     private val defaultToken = "aaa111bbb222ccc333"
 
-//    @LocalServerPort
-//    var port: Int = 10000
 
     @BeforeEach
     fun setUp() {
