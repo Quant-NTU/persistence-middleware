@@ -5,18 +5,24 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.http.HttpStatus
-import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
-import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.data.mongo.*
 
-import sg.com.quantai.middleware.data.mongo.Portfolio
-import sg.com.quantai.middleware.data.mongo.User
+import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import sg.com.quantai.middleware.repositories.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
+import sg.com.quantai.middleware.requests.assets.CryptoRequest
+import sg.com.quantai.middleware.requests.assets.ForexRequest
+import sg.com.quantai.middleware.requests.assets.StockRequest
 import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/portfolios")
 class PortfolioController(
     private val portfolioRepository: PortfolioRepository,
+    private val portfolioHistoryRepository: PortfolioHistoryRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val stockRepository: StockRepository,
+    private val forexRepository: ForexRepository,
     private val userRepository: UserRepository
 ) {
 
@@ -79,11 +85,105 @@ class PortfolioController(
                 name = request.name,
                 createdDate = portfolio.createdDate,
                 updatedDate = LocalDateTime.now(),
-                owner = user,
-                history = portfolio.history,
-                assets = portfolio.assets
+                owner = user
             )
         )
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPortfolio)
+    }
+
+    @PostMapping("/asset/crypto/{portfolio_id}")
+    fun addCrypto(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: CryptoRequest
+    ) : ResponseEntity<Crypto> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+
+        if (!cryptoRepository.existsByName(request.name)) {
+            cryptoRepository.save(
+                Crypto(
+                    name = request.name,
+                    quantity = request.quantity,
+                    purchasePrice = request.purchasePrice,
+                    symbol = request.symbol
+                )
+            )
+        }
+        val crypto = cryptoRepository.findByName(request.name)
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = crypto,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = request.quantity,
+                value = request.quantity * request.purchasePrice,
+                portfolio = portfolio,
+            )
+        )
+
+        return ResponseEntity.status(HttpStatus.OK).body(crypto)
+    }
+
+    @PostMapping("/asset/stock/{portfolio_id}")
+    fun addStock(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: StockRequest
+    ) : ResponseEntity<Stock> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+
+        if (!stockRepository.existsByName(request.name)) {
+            stockRepository.save(
+                Stock(
+                    name = request.name,
+                    quantity = request.quantity,
+                    purchasePrice = request.purchasePrice,
+                    ticker = request.ticker
+                )
+            )
+        }
+        val stock = stockRepository.findByName(request.name)
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = stock,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = request.quantity,
+                value = request.quantity * request.purchasePrice,
+                portfolio = portfolio,
+            )
+        )
+
+        return ResponseEntity.status(HttpStatus.OK).body(stock)
+    }
+
+    @PostMapping("/asset/forex/{portfolio_id}")
+    fun addForex(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: ForexRequest
+    ) : ResponseEntity<Forex> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+
+        if (!forexRepository.existsByName(request.name)) {
+            forexRepository.save(
+                Forex(
+                    name = request.name,
+                    quantity = request.quantity,
+                    purchasePrice = request.purchasePrice,
+                    currencyPair = request.currencyPair,
+                )
+            )
+        }
+        val forex = forexRepository.findByName(request.name)
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = forex,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = request.quantity,
+                value = request.quantity * request.purchasePrice,
+                portfolio = portfolio,
+            )
+        )
+
+        return ResponseEntity.status(HttpStatus.OK).body(forex)
     }
 }

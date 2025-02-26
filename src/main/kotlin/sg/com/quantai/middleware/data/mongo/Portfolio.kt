@@ -20,7 +20,5 @@ data class Portfolio(
     val createdDate: LocalDateTime = LocalDateTime.now(),
     val updatedDate: LocalDateTime = LocalDateTime.now(),
     //Relationships columns
-    @DBRef val owner: User,
-    @DBRef val history: List<PortfolioHistory>? = emptyList<PortfolioHistory>(),    
-    @DBRef val assets: MutableList<Asset>? = mutableListOf(),
+    @DBRef val owner: User
 )

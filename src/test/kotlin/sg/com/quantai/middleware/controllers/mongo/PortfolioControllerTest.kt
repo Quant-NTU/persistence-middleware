@@ -46,7 +46,7 @@ constructor(
             Portfolio(
                 name = name,
                 description = description,
-                isMain = isMain,
+                main = isMain,
                 owner = owner,
             )
         )

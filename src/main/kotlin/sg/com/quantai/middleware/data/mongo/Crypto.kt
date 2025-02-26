@@ -8,7 +8,7 @@ import java.time.LocalDateTime
 
 @Document(collection = "cryptos")
 @TypeAlias("crypto")
-class Crypto (
+class Crypto(
     name: String?,
     quantity: BigDecimal,
     purchasePrice: BigDecimal,
