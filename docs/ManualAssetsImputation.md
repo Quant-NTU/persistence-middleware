@@ -1,3 +1,5 @@
+Delete this file and focus the documentation in the Portfolio.md instead
+
 # Asset Management in Portfolio
 
 This document details how users can manually add assets to their portfolios for testing and simulation purposes within the system.
