@@ -75,56 +75,24 @@ constructor(
         val user1Id = user1.uid
         val user2Id = user2.uid
 
-       // No portfolios for user 1
+       // 1 (Default) portfolio for user 1
        var response =
         restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
+        assertEquals(1, response.body?.size)
 
-        // No portfolios for user 2
+        // 1 (Default) portfolio for user 2
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
-
-        saveOnePortfolio(owner = user1)
-        // 1 portfolio for user 1
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
-        // No portfolios for user 2
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
 
         saveOnePortfolio(owner = user1)
-        // 2 portfolios for user 1
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(2, response.body?.size)
-        // No portfolios for user 2
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
-
-        saveOnePortfolio(owner = user2)
-        // 2 portfolios for user 1
+        // 2 portfolio for user 1
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
@@ -138,6 +106,8 @@ constructor(
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
+
+        saveOnePortfolio(owner = user1)
     }
 
     @Test
@@ -154,10 +124,10 @@ constructor(
         val portfolio2_1_Id = saveOnePortfolio(owner = user2).uid
 
         var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
-        assertEquals(2, response.body?.size)
+        assertEquals(3, response.body?.size)
 
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-        assertEquals(1, response.body?.size)
+        assertEquals(2, response.body?.size)
 
         // Delete portfolio1_1 for user 1
         val deleteResponse1 = restTemplate.exchange(
@@ -170,10 +140,10 @@ constructor(
         assertEquals("Deleted portfolio $portfolio1_1_Id", deleteResponse1.body)
     
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
-        assertEquals(1, response.body?.size)
+        assertEquals(2, response.body?.size)
 
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-        assertEquals(1, response.body?.size)
+        assertEquals(2, response.body?.size)
 
         // Delete portfolio2_1 for user 2
         val deleteResponse2 = restTemplate.exchange(
@@ -186,10 +156,10 @@ constructor(
         assertEquals("Deleted portfolio $portfolio2_1_Id", deleteResponse2.body)
     
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
-        assertEquals(1, response.body?.size)
+        assertEquals(2, response.body?.size)
 
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-        assertEquals(0, response.body?.size)
+        assertEquals(1, response.body?.size)
 
         // Delete portfolio1_2 for user 1
         val deleteResponse3 = restTemplate.exchange(
@@ -201,9 +171,47 @@ constructor(
         assertEquals("Deleted portfolio $portfolio1_2_Id", deleteResponse3.body)
     
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
-        assertEquals(0, response.body?.size)
+        assertEquals(1, response.body?.size)
 
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-        assertEquals(0, response.body?.size)
+        assertEquals(1, response.body?.size)
+    }
+
+    @Test
+    fun `should not delete main portfolio`() {
+        val (password1, salt1) = hashAndSaltPassword("Password1")
+        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val user1Id = user1.uid
+
+        val portfolio1_1_Id = saveOnePortfolio(owner = user1,main=true).uid
+        val portfolio1_2_Id = saveOnePortfolio(owner = user1).uid
+
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        assertEquals(2, response.body?.size)
+
+        // Delete portfolio1_1 for user 1
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/user/$user1Id/$portfolio1_1_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
+        )
+
+        assertEquals("Cannot delete main portfolio.", deleteResponse1.body)
+    
+        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        assertEquals(2, response.body?.size)
+    
+        // Delete portfolio1_2 for user 1
+        val deleteResponse3 = restTemplate.exchange(
+            getRootUrl() + "/user/$user1Id/$portfolio1_2_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
+        )
+        assertEquals("Deleted portfolio $portfolio1_2_Id", deleteResponse3.body)
+    
+        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        assertEquals(1, response.body?.size)
     }
 }
