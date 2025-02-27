@@ -186,4 +186,21 @@ class PortfolioController(
 
         return ResponseEntity.status(HttpStatus.OK).body(forex)
     }
+
+    @DeleteMapping("/user/{user_id}/{portfolio_id}")
+    fun deletePortfolioFromUser(
+        @PathVariable("user_id") user_id: String,
+        @PathVariable("portfolio_id") portfolio_id: String
+    ) : ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(portfolio_id)
+        if (portfolio.owner.uid == user.uid) {
+            portfolioRepository.deleteByUid(portfolio.uid)
+        }
+        else{
+            return ResponseEntity(HttpStatus.FORBIDDEN)
+        }
+        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_id}")
+    }
+
 }
