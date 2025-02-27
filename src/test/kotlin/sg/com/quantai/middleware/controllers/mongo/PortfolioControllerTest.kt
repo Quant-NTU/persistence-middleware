@@ -1,9 +1,9 @@
 
-import sg.com.quantai.middleware.repositories.mongo.NewPortfolioRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.data.mongo.User
-import sg.com.quantai.middleware.data.mongo.NewPortfolio
-import sg.com.quantai.middleware.requests.NewPortfolioRequest
+import sg.com.quantai.middleware.data.mongo.Portfolio
+import sg.com.quantai.middleware.requests.PortfolioRequest
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -24,11 +24,11 @@ import org.springframework.http.HttpMethod
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
-//@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+
 class PortfolioControllerTest 
 @Autowired 
 constructor(
-    private val portfolioRepository: NewPortfolioRepository,
+    private val portfolioRepository: PortfolioRepository,
     private val userRepository: UserRepository,
     private val restTemplate: TestRestTemplate
 
@@ -41,19 +41,19 @@ constructor(
         userRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/newPortfolios"
+    private fun getRootUrl(): String? = "http://localhost:$port/portfolios"
     
     private fun saveOnePortfolio(
         name: String = "Test",
         description: String = "Test2",
-        isMain: Boolean = true,
+        main: Boolean = false,
         owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
     )=  
         portfolioRepository.save(
-            NewPortfolio(   
+            Portfolio(   
                 name = name,
                 description = description,
-                isMain = isMain,
+                main = main,
                 owner = owner,
             )
         )

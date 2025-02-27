@@ -194,7 +194,10 @@ class PortfolioController(
     ) : ResponseEntity<Any> {
         val user = userRepository.findOneByUid(user_id)
         val portfolio = portfolioRepository.findOneByUid(portfolio_id)
-        if (portfolio.owner.uid == user.uid) {
+        if (portfolio.main == true){
+            return  ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot delete main portfolio.")
+        }
+        else if (portfolio.owner.uid == user.uid) {
             portfolioRepository.deleteByUid(portfolio.uid)
         }
         else{
