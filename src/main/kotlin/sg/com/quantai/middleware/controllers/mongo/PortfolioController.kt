@@ -197,6 +197,7 @@ class PortfolioController(
         if (portfolio.main == true){
             return  ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot delete main portfolio.")
         }
+        portfolioRepository.deleteByUid(portfolio.uid)
         return ResponseEntity.ok().body("Deleted portfolio ${portfolio_id}")
     }
 
