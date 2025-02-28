@@ -14,6 +14,7 @@ import sg.com.quantai.middleware.requests.assets.CryptoRequest
 import sg.com.quantai.middleware.requests.assets.ForexRequest
 import sg.com.quantai.middleware.requests.assets.StockRequest
 import java.time.LocalDateTime
+import java.math.BigDecimal
 
 @RestController
 @RequestMapping("/portfolios")
@@ -197,5 +198,216 @@ class PortfolioController(
         )
 
         return ResponseEntity.status(HttpStatus.OK).body(forex)
+    }
+
+    fun checkPortfolioAssetQuantity(quantity: BigDecimal, asset: Asset, portfolio_uid: String): Boolean {
+        val portfolioHistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio_uid)
+        var portfolioAssetQty = BigDecimal.ZERO
+    
+        for (history in portfolioHistory) {
+            if (history.asset == asset) {
+                portfolioAssetQty = if (history.action == PortfolioActionEnum.ADD_MANUAL_ASSET || history.action == PortfolioActionEnum.BUY_REAL_ASSET) {
+                    portfolioAssetQty + history.quantity
+                } else {
+                    portfolioAssetQty - history.quantity
+                }
+            }
+        }
+    
+        return if (portfolioAssetQty < quantity) {
+            false
+        } else {
+            true
+        }
+    }
+
+    @PostMapping("/asset/stock/update/{user_id}")
+    fun updateStock(
+        @PathVariable("user_id") user_id: String,
+        @RequestBody request: StockRequest
+    ) : ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val stock = stockRepository.findByName(request.name)
+        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+
+        
+        if (request.action=="Add"){
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio_main.uid)
+            if (quantityCheck == false){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
+            }
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio,
+                )
+            )
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio_main,
+                )
+            )
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from default portfolio to {$portfolio.name}.")
+        }
+        else {
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,request.portfolio_uid)
+            if (quantityCheck == false){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
+            }
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio_main,
+                )
+            )
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio,
+                )
+            )
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from {$portfolio.name} to default.")
+        }
+    }
+
+    @PostMapping("/asset/crypto/update/{user_id}")
+    fun updateCrypto(
+        @PathVariable("user_id") user_id: String,
+        @RequestBody request: CryptoRequest
+    ) : ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val crypto = cryptoRepository.findByName(request.name)
+        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+
+        
+        if (request.action=="Add"){
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio_main.uid)
+            if (quantityCheck == false){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
+            }
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio,
+                )
+            )
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio_main,
+                )
+            )
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from default portfolio to {$portfolio.name}.")
+        }
+        else {
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,request.portfolio_uid)
+            if (quantityCheck == false){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
+            }
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio_main,
+                )
+            )
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio,
+                )
+            )
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from {$portfolio.name} to default.")
+        }
+    }
+    
+
+    @PostMapping("/asset/forex/update/{user_id}")
+    fun updateForex(
+        @PathVariable("user_id") user_id: String,
+        @RequestBody request: ForexRequest
+    ) : ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val forex = forexRepository.findByName(request.name)
+        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+
+        
+        if (request.action=="Add"){
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio_main.uid)
+            if (quantityCheck == false){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
+            }
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio,
+                )
+            )
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio_main,
+                )
+            )
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from default portfolio to {$portfolio.name}.")
+        }
+        else {
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,request.portfolio_uid)
+            if (quantityCheck == false){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
+            }
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio_main,
+                )
+            )
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = request.quantity,
+                    value = request.quantity * request.purchasePrice,
+                    portfolio = portfolio,
+                )
+            )
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from {$portfolio.name} to default.")
+        }
     }
 }
