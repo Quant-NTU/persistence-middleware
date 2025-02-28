@@ -15,7 +15,6 @@ import sg.com.quantai.middleware.requests.assets.ForexRequest
 import sg.com.quantai.middleware.requests.assets.StockRequest
 import java.time.LocalDateTime
 import java.math.BigDecimal
-import java.math.RoundingMode;
 
 @RestController
 @RequestMapping("/portfolios")
