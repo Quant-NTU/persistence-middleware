@@ -200,55 +200,64 @@ class PortfolioController(
             return  ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot delete main portfolio.")
         }
         val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio_id)
-        val assetData: MutableMap<Asset, Pair<BigDecimal, BigDecimal>> = mutableMapOf()
+        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+        // val assetData: MutableMap<Asset, Pair<BigDecimal, BigDecimal>> = mutableMapOf()
 
         for (history in portfoliohistory){
-            val asset = history.asset
-            val quantity = history.quantity
-            val value = history.value
-            val (currentQuantity, currentCost) = assetData.getOrDefault(asset, BigDecimal.ZERO to BigDecimal.ZERO)
 
-            val totalQuantity = when (history.action) {
-                PortfolioActionEnum.BUY_REAL_ASSET, PortfolioActionEnum.ADD_MANUAL_ASSET -> currentQuantity + quantity
-                PortfolioActionEnum.SELL_REAL_ASSET, PortfolioActionEnum.REMOVE_MANUAL_ASSET -> currentQuantity - quantity
-            }
-
-            val totalCost = when (history.action) {
-                PortfolioActionEnum.BUY_REAL_ASSET, PortfolioActionEnum.ADD_MANUAL_ASSET -> currentCost + value
-                PortfolioActionEnum.SELL_REAL_ASSET, PortfolioActionEnum.REMOVE_MANUAL_ASSET -> currentCost - value
-            }
-
-            assetData[asset] = totalQuantity to totalCost
+            val updatedHistory = history.copy(
+                portfolio = portfolio_main,
+                updatedDate = LocalDateTime.now()
+            )
+            portfolioHistoryRepository.save(updatedHistory)
         }
         
-        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+        portfolioRepository.deleteByUid(portfolio_id)
+        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_id}")
+        //     val asset = history.asset
+        //     val quantity = history.quantity
+        //     val value = history.value
+        //     val (currentQuantity, currentCost) = assetData.getOrDefault(asset, BigDecimal.ZERO to BigDecimal.ZERO)
 
-        for ((asset, data) in assetData){
-            val (totalQuantity, totalCost) = data
-            val averageCost = totalCost.divide(totalQuantity, 2, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP)
+        //     val totalQuantity = when (history.action) {
+        //         PortfolioActionEnum.BUY_REAL_ASSET, PortfolioActionEnum.ADD_MANUAL_ASSET -> currentQuantity + quantity
+        //         PortfolioActionEnum.SELL_REAL_ASSET, PortfolioActionEnum.REMOVE_MANUAL_ASSET -> currentQuantity - quantity
+        //     }
 
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = asset,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = totalQuantity,
-                    value = averageCost * totalQuantity,
-                    portfolio = portfolio_main,
-                )   
-            )
+        //     val totalCost = when (history.action) {
+        //         PortfolioActionEnum.BUY_REAL_ASSET, PortfolioActionEnum.ADD_MANUAL_ASSET -> currentCost + value
+        //         PortfolioActionEnum.SELL_REAL_ASSET, PortfolioActionEnum.REMOVE_MANUAL_ASSET -> currentCost - value
+        //     }
 
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = asset,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = totalQuantity,
-                    value = averageCost * totalQuantity,
-                    portfolio = portfolio,
-                )   
-            )
-        }
+        //     assetData[asset] = totalQuantity to totalCost
+        // }
+        
+        // for ((asset, data) in assetData){
+        //     val (totalQuantity, totalCost) = data
+        //     val averageCost = totalCost.divide(totalQuantity, 2, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP)
 
-        // portfolioRepository.deleteByUid(portfolio_id)
+        //     portfolioHistoryRepository.save(
+        //         PortfolioHistory(
+        //             asset = asset,
+        //             action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+        //             quantity = totalQuantity,
+        //             value = averageCost * totalQuantity,
+        //             portfolio = portfolio_main,
+        //         )   
+        //     )
+
+        //     portfolioHistoryRepository.save(
+        //         PortfolioHistory(
+        //             asset = asset,
+        //             action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+        //             quantity = totalQuantity,
+        //             value = averageCost * totalQuantity,
+        //             portfolio = portfolio,
+        //         )   
+        //     )
+        // }
+
+        portfolioRepository.deleteByUid(portfolio_id)
         return ResponseEntity.ok().body("Deleted portfolio ${portfolio_id}")
     }
 }
