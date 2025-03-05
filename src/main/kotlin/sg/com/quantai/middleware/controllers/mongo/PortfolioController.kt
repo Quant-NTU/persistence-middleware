@@ -186,4 +186,177 @@ class PortfolioController(
 
         return ResponseEntity.status(HttpStatus.OK).body(forex)
     }
+
+    @DeleteMapping("/asset/crypto/{portfolio_id}")
+    fun deleteCrypto(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: DeleteCryptoRequest
+    ): ResponseEntity<Crypto> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+
+        val crypto = cryptoRepository.findByName(request.name)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        if (request.deleteAll) {
+            
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = crypto.quantity,
+                    value = crypto.quantity.multiply(crypto.purchasePrice),
+                    portfolio = portfolio
+                )
+            )
+            //Delete asset entirely
+            cryptoRepository.delete(crypto)
+            return ResponseEntity.status(HttpStatus.OK).body(crypto)
+        } 
+        
+        else {
+            val newQuantity = crypto.quantity.subtract(request.quantity)
+            if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                //If resulting quantity is zero or negative, delete the asset completely
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = crypto,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = crypto.quantity,
+                        value = crypto.quantity.multiply(crypto.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                cryptoRepository.delete(crypto)
+                return ResponseEntity.status(HttpStatus.OK).body(crypto)
+            } 
+            
+            else {
+                //Update asset quantity and history
+                val updatedCrypto = crypto.copy(quantity = newQuantity, updatedDate = LocalDateTime.now())
+                cryptoRepository.save(updatedCrypto)
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = updatedCrypto,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = request.quantity,
+                        value = request.quantity.multiply(crypto.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                return ResponseEntity.status(HttpStatus.OK).body(updatedCrypto)
+            }
+        }
+    }
+
+    @DeleteMapping("/asset/stock/{portfolio_id}")
+    fun deleteStock(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: DeleteStockRequest
+    ): ResponseEntity<Stock> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val stock = stockRepository.findByName(request.name)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        if (request.deleteAll) {
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = stock.quantity,
+                    value = stock.quantity.multiply(stock.purchasePrice),
+                    portfolio = portfolio
+                )
+            )
+            stockRepository.delete(stock)
+            return ResponseEntity.status(HttpStatus.OK).body(stock)
+        } 
+        
+        else {
+            val newQuantity = stock.quantity.subtract(request.quantity)
+            if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = stock,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = stock.quantity,
+                        value = stock.quantity.multiply(stock.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                stockRepository.delete(stock)
+                return ResponseEntity.status(HttpStatus.OK).body(stock)
+            } 
+            
+            else {
+                val updatedStock = stock.copy(quantity = newQuantity, updatedDate = LocalDateTime.now())
+                stockRepository.save(updatedStock)
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = updatedStock,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = request.quantity,
+                        value = request.quantity.multiply(stock.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                return ResponseEntity.status(HttpStatus.OK).body(updatedStock)
+            }
+        }
+    }
+
+    @DeleteMapping("/asset/forex/{portfolio_id}")
+    fun deleteForex(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: DeleteForexRequest
+    ): ResponseEntity<Forex> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val forex = forexRepository.findByName(request.name)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        if (request.deleteAll) {
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = forex.quantity,
+                    value = forex.quantity.multiply(forex.purchasePrice),
+                    portfolio = portfolio
+                )
+            )
+            forexRepository.delete(forex)
+            return ResponseEntity.status(HttpStatus.OK).body(forex)
+        } 
+        
+        else {
+            val newQuantity = forex.quantity.subtract(request.quantity)
+            if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = forex,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = forex.quantity,
+                        value = forex.quantity.multiply(forex.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                forexRepository.delete(forex)
+                return ResponseEntity.status(HttpStatus.OK).body(forex)
+            } 
+            
+            else {
+                val updatedForex = forex.copy(quantity = newQuantity, updatedDate = LocalDateTime.now())
+                forexRepository.save(updatedForex)
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = updatedForex,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = request.quantity,
+                        value = request.quantity.multiply(forex.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                return ResponseEntity.status(HttpStatus.OK).body(updatedForex)
+            }
+        }
+    }
 }

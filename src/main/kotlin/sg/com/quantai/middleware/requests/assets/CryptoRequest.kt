@@ -9,3 +9,10 @@ class CryptoRequest (
     val purchasePrice: BigDecimal,
     val symbol: String
 )
+
+class DeleteCryptoRequest(
+    val portfolio_uid: String,
+    val name: String,
+    val quantity: BigDecimal,
+    val deleteAll: Boolean
+)
