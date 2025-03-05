@@ -14,9 +14,11 @@ import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import org.mindrot.jbcrypt.BCrypt
+import sg.com.quantai.middleware.MiddlewareApplication
 
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+
+@SpringBootTest(classes = [MiddlewareApplication::class], webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
 class PortfolioControllerTest 
 @Autowired 
@@ -68,68 +70,66 @@ constructor(
         val user1Id = user1.uid
         val user2Id = user2.uid
 
-       // No portfolios for user 1
        var response =
         restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
+        assertEquals(1, response.body?.size)
 
-        // No portfolios for user 2
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
-
-        saveOnePortfolio(owner = user1)
-        // 1 portfolio for user 1
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
-        // No portfolios for user 2
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
 
         saveOnePortfolio(owner = user1)
-        // 2 portfolios for user 1
+        
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(2, response.body?.size)
-        // No portfolios for user 2
+        
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
+        assertEquals(1, response.body?.size)
+
+        saveOnePortfolio(owner = user1)
+        
+        response =
+            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertEquals(3, response.body?.size)
+        
+        response =
+            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertEquals(1, response.body?.size)
 
         saveOnePortfolio(owner = user2)
-        // 2 portfolios for user 1
+        
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
-        assertEquals(2, response.body?.size)
-        // 1 portfolio for user 2
+        assertEquals(3, response.body?.size)
+        
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
-        assertEquals(1, response.body?.size)
+        assertEquals(2, response.body?.size)
     }
 }
