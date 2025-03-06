@@ -255,7 +255,7 @@ class PortfolioController(
                     portfolio = portfolio_main,
                 )
             )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from default portfolio to {$portfolio.name}.")
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
         }
         else {
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,request.portfolio_uid)
@@ -280,7 +280,7 @@ class PortfolioController(
                     portfolio = portfolio,
                 )
             )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from {$portfolio.name} to default.")
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
         }
     }
 
@@ -318,7 +318,7 @@ class PortfolioController(
                     portfolio = portfolio_main,
                 )
             )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from default portfolio to {$portfolio.name}.")
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
         }
         else {
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,request.portfolio_uid)
@@ -343,7 +343,7 @@ class PortfolioController(
                     portfolio = portfolio,
                 )
             )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from {$portfolio.name} to default.")
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
         }
     }
     
@@ -382,7 +382,7 @@ class PortfolioController(
                     portfolio = portfolio_main,
                 )
             )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from default portfolio to {$portfolio.name}.")
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
         }
         else {
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,request.portfolio_uid)
@@ -407,7 +407,7 @@ class PortfolioController(
                     portfolio = portfolio,
                 )
             )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred {$request.quantity} from {$portfolio.name} to default.")
+            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
         }
     }
 }
