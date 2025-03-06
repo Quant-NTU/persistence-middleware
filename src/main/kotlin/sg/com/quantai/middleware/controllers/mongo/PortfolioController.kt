@@ -200,8 +200,8 @@ class PortfolioController(
         return ResponseEntity.status(HttpStatus.OK).body(forex)
     }
 
-    fun checkPortfolioAssetQuantity(quantity: BigDecimal, asset: Asset, portfolio_uid: String): Boolean {
-        val portfolioHistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio_uid)
+    fun checkPortfolioAssetQuantity(quantity: BigDecimal, asset: Asset, portfolio: Portfolio): Boolean {
+        val portfolioHistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
         var portfolioAssetQty = BigDecimal.ZERO
     
         for (history in portfolioHistory) {
@@ -233,7 +233,7 @@ class PortfolioController(
 
         
         if (request.action=="Add"){
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio_main.uid)
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio_main)
             if (quantityCheck == false){
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
             }
@@ -258,7 +258,7 @@ class PortfolioController(
             return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
         }
         else {
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,request.portfolio_uid)
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio)
             if (quantityCheck == false){
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
             }
@@ -296,7 +296,7 @@ class PortfolioController(
 
         
         if (request.action=="Add"){
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio_main.uid)
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio_main)
             if (quantityCheck == false){
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
             }
@@ -321,7 +321,7 @@ class PortfolioController(
             return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
         }
         else {
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,request.portfolio_uid)
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio)
             if (quantityCheck == false){
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
             }
@@ -360,7 +360,7 @@ class PortfolioController(
 
         
         if (request.action=="Add"){
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio_main.uid)
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio_main)
             if (quantityCheck == false){
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
             }
@@ -385,7 +385,7 @@ class PortfolioController(
             return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
         }
         else {
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,request.portfolio_uid)
+            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio)
             if (quantityCheck == false){
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
             }
