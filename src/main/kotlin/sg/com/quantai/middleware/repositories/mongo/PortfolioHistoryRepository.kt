@@ -10,4 +10,5 @@ interface PortfolioHistoryRepository : MongoRepository<PortfolioHistory, String>
     fun findOneByUid(uid: String): PortfolioHistory
     override fun deleteAll()
     fun quantity(quantity: BigDecimal): MutableList<PortfolioHistory>
+    fun findByPortfolio(portfolio:Portfolio):List<PortfolioHistory>
 }
