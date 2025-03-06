@@ -180,7 +180,7 @@ constructor(
             HttpEntity(null, HttpHeaders()),
             String::class.java
         )
-        assertEquals("Deleted portfolio $portfolio2_Id", deleteResponse3.body)
+        assertEquals("Deleted portfolio ${portfolio2.name}", deleteResponse3.body)
     
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
