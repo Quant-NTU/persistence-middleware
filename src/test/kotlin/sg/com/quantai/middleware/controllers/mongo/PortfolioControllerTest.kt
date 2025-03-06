@@ -115,7 +115,6 @@ constructor(
             )
         )
     }
-        
 
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
 

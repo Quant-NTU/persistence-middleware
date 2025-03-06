@@ -10,5 +10,6 @@ interface PortfolioRepository : MongoRepository<Portfolio, String> {
     fun findOneByUidAndOwner(uid: String, owner: User): Portfolio
     fun existsByOwnerAndMain(owner: User, isMain: Boolean): Boolean
     fun findByOwnerAndMain(owner: User, isMain: Boolean): Portfolio
+    fun deleteByUid(uid: String)
     override fun deleteAll()
 }

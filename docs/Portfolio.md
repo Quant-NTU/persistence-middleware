@@ -30,7 +30,7 @@ The system shows all of the details of the user's portfolio. Users will be able 
 
 ### Deleting a Portfolio
 
-To be added
+Upon clicking on the trash icon and going through a double confirmation procedure, the user's portfolio will be deleted. All assets associated with the deleted portfolio will then be transferred to the default portfolio.
 
 ## Legacy Portfolio Documentations
 
