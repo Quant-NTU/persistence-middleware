@@ -29,7 +29,7 @@ import sg.com.quantai.middleware.MiddlewareApplication
 class PortfolioControllerTest 
 @Autowired 
 constructor(
-    private val restTemplate: TestRestTemplate
+    private val restTemplate: TestRestTemplate,
     private val portfolioRepository: PortfolioRepository,
     private val portfolioHistoryRepository: PortfolioHistoryRepository,
     private val cryptoRepository: CryptoRepository,
