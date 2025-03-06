@@ -14,7 +14,7 @@ The system will ask user to create a default portfolio.
 
 #### Situation 2: User has portfolio(s)
 
-The system shows all the user's portfolios in a table. Each portoflio shall have the name, description, value, created date, updated date and a list of actions. The actions are:
+The system shows all the user's portfolios in a table. Each portfolio shall have the name, description, value, created date, updated date and a list of actions. The actions are:
 
 - view detail of this portfolio, denoted with an eye icon
 - edit this portfolio, denoted with a pen icon
@@ -26,7 +26,7 @@ To be added
 
 ### Editing a Portfolio
 
-To be added
+The system shows all of the details of the user's portfolio. Users will be able to edit the name, description, as well as quantity of their assets. Assets that are removed from the portfolio are transferred to the default portfolio, and assets that are added to the portfolio are transferred from the default portfolio.
 
 ### Deleting a Portfolio
 
