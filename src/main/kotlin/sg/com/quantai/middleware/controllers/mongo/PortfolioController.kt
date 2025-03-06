@@ -50,16 +50,33 @@ class PortfolioController(
         return ResponseEntity(userPortfolios, HttpStatus.OK)
     }
 
+    data class PortfolioHistoryResponse(
+        val history: PortfolioHistory,
+        val assetType: String
+    )
+
     @GetMapping("/history/{user_id}/{portfolio_id}")
     fun getAllPortfolioHistoryByPortfolio(
         @PathVariable("user_id") userId: String,
         @PathVariable("portfolio_id") portfolioId: String
-    ): ResponseEntity<List<PortfolioHistory>> {
+    ): ResponseEntity<List<PortfolioHistoryResponse>> {
         val user = userRepository.findOneByUid(userId)
         val portfolio: Portfolio = portfolioRepository.findOneByUidAndOwner(portfolioId, user)
         val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
 
-        return ResponseEntity(portfoliohistory, HttpStatus.OK)
+        val response = portfoliohistory.map { history ->
+            PortfolioHistoryResponse(
+                history = history,
+                assetType = when (history.asset) {
+                    is Forex -> "Forex"
+                    is Crypto -> "Crypto"
+                    is Stock -> "Stock"
+                    else -> "Unknown"
+                }
+            )
+        }
+    
+        return ResponseEntity(response, HttpStatus.OK)
     }
 
     @PostMapping("/{user_id}")
