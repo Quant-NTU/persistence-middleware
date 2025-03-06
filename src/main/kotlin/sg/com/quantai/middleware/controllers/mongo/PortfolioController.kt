@@ -51,6 +51,27 @@ class PortfolioController(
         return ResponseEntity(userPortfolios, HttpStatus.OK)
     }
 
+    @GetMapping("/user/{user_id}")
+    fun getAllPortfolioHistoryByUser(
+        @PathVariable("user_id") userId: String
+    ): ResponseEntity<List<Portfolio>> {
+        val user = userRepository.findOneByUid(userId)
+
+        if (!portfolioRepository.existsByOwnerAndMain(user, true)) {
+            portfolioRepository.save(
+                Portfolio(
+                    main = true,
+                    description = "Default portfolio",
+                    name = "Default Portfolio",
+                    owner = user
+                )
+            )
+        }
+
+        val userPortfolios = portfolioRepository.findByOwner(user)
+
+        return ResponseEntity(userPortfolios, HttpStatus.OK)
+    }
     @PostMapping("/{user_id}")
     fun createPortfolio(
         @PathVariable("user_id") userId: String,
@@ -198,19 +219,19 @@ class PortfolioController(
         if (portfolio.main == true){
             return  ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot delete main portfolio.")
         }
-        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio_id)
+        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
         val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
 
         for (history in portfoliohistory){
-
             val updatedHistory = history.copy(
                 portfolio = portfolio_main,
                 updatedDate = LocalDateTime.now()
             )
             portfolioHistoryRepository.save(updatedHistory)
         }
-        
+
+        val portfolio_name = portfolio.name
         portfolioRepository.deleteByUid(portfolio_id)
-        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_id}")
+        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_name}")
     }
 }

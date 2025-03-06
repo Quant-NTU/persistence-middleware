@@ -1,9 +1,8 @@
 
-import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
-import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import sg.com.quantai.middleware.data.mongo.User
-import sg.com.quantai.middleware.data.mongo.Portfolio
+import sg.com.quantai.middleware.repositories.mongo.*
+import sg.com.quantai.middleware.data.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
+import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -20,6 +19,7 @@ import org.mindrot.jbcrypt.BCrypt
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import java.math.BigDecimal
 
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -28,10 +28,13 @@ import org.springframework.http.HttpMethod
 class PortfolioControllerTest 
 @Autowired 
 constructor(
-    private val portfolioRepository: PortfolioRepository,
-    private val userRepository: UserRepository,
     private val restTemplate: TestRestTemplate
-
+    private val portfolioRepository: PortfolioRepository,
+    private val portfolioHistoryRepository: PortfolioHistoryRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val stockRepository: StockRepository,
+    private val forexRepository: ForexRepository,
+    private val userRepository: UserRepository
 ) {
     @LocalServerPort protected var port: Int = 0
 
@@ -57,6 +60,34 @@ constructor(
                 owner = owner,
             )
         )
+
+        private fun saveOneAsset(
+            name: String = "TestAsset",
+            quantity: BigDecimal = BigDecimal(2),
+            purchasePrice: BigDecimal = BigDecimal(3),
+            symbol: String = "TST",
+            portfolio: Portfolio = saveOnePortfolio()
+        ) {
+            val crypto = cryptoRepository.save(
+                Crypto(
+                    name = name,
+                    quantity = quantity,
+                    purchasePrice = purchasePrice,
+                    symbol = symbol
+                )
+            )
+        
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = quantity,
+                    value = quantity * purchasePrice,
+                    portfolio = portfolio
+                )
+            )
+        }
+        
 
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
 
@@ -114,15 +145,20 @@ constructor(
         val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
         val user1Id = user1.uid
 
-        val portfolio1_1_Id = saveOnePortfolio(owner = user1,main=true).uid
-        val portfolio1_2_Id = saveOnePortfolio(owner = user1).uid
+        val portfolio1 = saveOnePortfolio(owner = user1,main=true)
+        val portfolio1_Id = portfolio1.uid
+        val portfolio2 = saveOnePortfolio(owner = user1)
+        val portfolio2_Id = portfolio2.uid
+
+        saveOneAsset(portfolio = portfolio1)
+        saveOneAsset(portfolio = portfolio2)
 
         var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(2, response.body?.size)
 
         // Delete portfolio1_1 for user 1
         val deleteResponse1 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$portfolio1_1_Id",
+            getRootUrl() + "/user/$user1Id/$portfolio1_Id",
             HttpMethod.DELETE,
             HttpEntity(null, HttpHeaders()),
             String::class.java
@@ -135,14 +171,18 @@ constructor(
     
         // Delete portfolio1_2 for user 1
         val deleteResponse3 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$portfolio1_2_Id",
+            getRootUrl() + "/user/$user1Id/$portfolio2_Id",
             HttpMethod.DELETE,
             HttpEntity(null, HttpHeaders()),
             String::class.java
         )
-        assertEquals("Deleted portfolio $portfolio1_2_Id", deleteResponse3.body)
+        assertEquals("Deleted portfolio $portfolio2_Id", deleteResponse3.body)
     
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
+
+        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1_Id)
+        assertEquals(2, portfoliohistory.size)
+
     }
 }
