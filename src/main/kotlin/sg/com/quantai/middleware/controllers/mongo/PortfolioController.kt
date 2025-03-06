@@ -222,7 +222,7 @@ class PortfolioController(
         var portfolioAssetQty = BigDecimal.ZERO
     
         for (history in portfolioHistory) {
-            if (history.asset == asset) {
+            if (history.asset.name == asset.name) {
                 portfolioAssetQty = if (history.action == PortfolioActionEnum.ADD_MANUAL_ASSET || history.action == PortfolioActionEnum.BUY_REAL_ASSET) {
                     portfolioAssetQty + history.quantity
                 } else {
@@ -248,7 +248,6 @@ class PortfolioController(
         val stock = stockRepository.findByName(request.name)
         val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
 
-        
         if (request.action=="Add"){
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio_main)
             if (quantityCheck == false){
@@ -451,4 +450,4 @@ class PortfolioController(
         portfolioRepository.deleteByUid(portfolio_id)
         return ResponseEntity.ok().body("Deleted portfolio ${portfolio_name}")
     }
-}
+}}
