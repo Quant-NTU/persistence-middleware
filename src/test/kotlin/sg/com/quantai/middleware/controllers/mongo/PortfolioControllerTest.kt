@@ -20,15 +20,16 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import java.math.BigDecimal
+import sg.com.quantai.middleware.MiddlewareApplication
 
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = [MiddlewareApplication::class], webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ExtendWith(SpringExtension::class)
 
 class PortfolioControllerTest 
 @Autowired 
 constructor(
-    private val restTemplate: TestRestTemplate
+    private val restTemplate: TestRestTemplate,
     private val portfolioRepository: PortfolioRepository,
     private val portfolioHistoryRepository: PortfolioHistoryRepository,
     private val cryptoRepository: CryptoRepository,
@@ -122,21 +123,24 @@ constructor(
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
 
-        saveOnePortfolio(owner = user1)
         // 2 portfolio for user 1
+        saveOnePortfolio(owner = user1)
+        
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(2, response.body?.size)
-        // 1 portfolio for user 2
+        
         response =
             restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
+
+        saveOnePortfolio(owner = user1)
     }
 
     @Test
@@ -156,7 +160,6 @@ constructor(
         var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(2, response.body?.size)
 
-        // Delete portfolio1_1 for user 1
         val deleteResponse1 = restTemplate.exchange(
             getRootUrl() + "/user/$user1Id/$portfolio1_Id",
             HttpMethod.DELETE,
@@ -169,20 +172,18 @@ constructor(
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(2, response.body?.size)
     
-        // Delete portfolio1_2 for user 1
         val deleteResponse3 = restTemplate.exchange(
             getRootUrl() + "/user/$user1Id/$portfolio2_Id",
             HttpMethod.DELETE,
             HttpEntity(null, HttpHeaders()),
             String::class.java
         )
-        assertEquals("Deleted portfolio $portfolio2_Id", deleteResponse3.body)
+        assertEquals("Deleted portfolio ${portfolio2.name}", deleteResponse3.body)
     
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
 
-        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1_Id)
+        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
         assertEquals(2, portfoliohistory.size)
-
     }
 }
