@@ -51,27 +51,6 @@ class PortfolioController(
         return ResponseEntity(userPortfolios, HttpStatus.OK)
     }
 
-    @GetMapping("/user/{user_id}")
-    fun getAllPortfolioHistoryByUser(
-        @PathVariable("user_id") userId: String
-    ): ResponseEntity<List<Portfolio>> {
-        val user = userRepository.findOneByUid(userId)
-
-        if (!portfolioRepository.existsByOwnerAndMain(user, true)) {
-            portfolioRepository.save(
-                Portfolio(
-                    main = true,
-                    description = "Default portfolio",
-                    name = "Default Portfolio",
-                    owner = user
-                )
-            )
-        }
-
-        val userPortfolios = portfolioRepository.findByOwner(user)
-
-        return ResponseEntity(userPortfolios, HttpStatus.OK)
-    }
     @PostMapping("/{user_id}")
     fun createPortfolio(
         @PathVariable("user_id") userId: String,
