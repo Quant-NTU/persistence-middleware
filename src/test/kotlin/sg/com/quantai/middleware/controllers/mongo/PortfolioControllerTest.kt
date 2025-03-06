@@ -160,7 +160,6 @@ constructor(
         var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(2, response.body?.size)
 
-        // Delete portfolio1_1 for user 1
         val deleteResponse1 = restTemplate.exchange(
             getRootUrl() + "/user/$user1Id/$portfolio1_Id",
             HttpMethod.DELETE,
@@ -173,7 +172,6 @@ constructor(
         response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
         assertEquals(2, response.body?.size)
     
-        // Delete portfolio1_2 for user 1
         val deleteResponse3 = restTemplate.exchange(
             getRootUrl() + "/user/$user1Id/$portfolio2_Id",
             HttpMethod.DELETE,
