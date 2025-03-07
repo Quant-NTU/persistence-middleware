@@ -8,16 +8,16 @@ import java.time.LocalDateTime
 
 @Document(collection = "cryptos")
 @TypeAlias("crypto")
-class Crypto(
-    name: String?,
-    quantity: BigDecimal,
-    purchasePrice: BigDecimal,
+data class Crypto(
+    override val name: String?,
+    override val quantity: BigDecimal,
+    override val purchasePrice: BigDecimal,
 
     // Pass along parent fields to constructor with defaults
-    _id: ObjectId = ObjectId.get(),
-    uid: String = ObjectId.get().toString(),
-    createdDate: LocalDateTime = LocalDateTime.now(),
-    updatedDate: LocalDateTime = LocalDateTime.now(),
+    override val _id: ObjectId = ObjectId.get(),
+    override val uid: String = ObjectId.get().toString(),
+    override val createdDate: LocalDateTime = LocalDateTime.now(),
+    override val updatedDate: LocalDateTime = LocalDateTime.now(),
 
     // Custom  columns
     val symbol: String?,

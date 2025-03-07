@@ -13,6 +13,11 @@ import sg.com.quantai.middleware.requests.PortfolioRequest
 import sg.com.quantai.middleware.requests.assets.CryptoRequest
 import sg.com.quantai.middleware.requests.assets.ForexRequest
 import sg.com.quantai.middleware.requests.assets.StockRequest
+import sg.com.quantai.middleware.requests.assets.DeleteCryptoRequest
+import sg.com.quantai.middleware.requests.assets.DeleteStockRequest
+import sg.com.quantai.middleware.requests.assets.DeleteForexRequest
+import java.math.BigDecimal
+
 import java.time.LocalDateTime
 
 @RestController
