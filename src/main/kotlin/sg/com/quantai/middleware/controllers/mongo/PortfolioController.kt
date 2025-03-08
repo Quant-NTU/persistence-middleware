@@ -16,7 +16,6 @@ import sg.com.quantai.middleware.requests.assets.StockRequest
 import sg.com.quantai.middleware.requests.assets.DeleteCryptoRequest
 import sg.com.quantai.middleware.requests.assets.DeleteStockRequest
 import sg.com.quantai.middleware.requests.assets.DeleteForexRequest
-import java.math.BigDecimal
 
 import java.time.LocalDateTime
 import java.math.BigDecimal
@@ -364,6 +363,7 @@ class PortfolioController(
                 return ResponseEntity.status(HttpStatus.OK).body(updatedForex)
             }
         }
+    }
     @DeleteMapping("/user/{user_id}/{portfolio_id}")
     fun deletePortfolioFromUser(
         @PathVariable("user_id") user_id: String,
