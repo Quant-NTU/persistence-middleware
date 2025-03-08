@@ -9,3 +9,10 @@ class StockRequest (
     val purchasePrice: BigDecimal,
     val ticker: String
 )
+
+class DeleteStockRequest(
+    val portfolio_uid: String,
+    val name: String,
+    val quantity: BigDecimal,
+    val deleteAll: Boolean
+)

@@ -186,4 +186,40 @@ constructor(
         val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
         assertEquals(2, portfoliohistory.size)
     }
+
+    @Test
+    fun `deleteCrypto should return OK when crypto is deleted`() {
+        val userId = 1L
+        val assetId = 100L
+        doNothing().`when`(portfolioService).deleteCrypto(userId, assetId)
+
+        val response: ResponseEntity<String> = portfolioController.deleteCrypto(userId, assetId)
+        
+        assert(response.statusCode == HttpStatus.OK)
+        assert(response.body == "Crypto asset deleted successfully")
+    }
+
+    @Test
+    fun `deleteStock should return OK when stock is deleted`() {
+        val userId = 2L
+        val assetId = 200L
+        doNothing().`when`(portfolioService).deleteStock(userId, assetId)
+
+        val response: ResponseEntity<String> = portfolioController.deleteStock(userId, assetId)
+        
+        assert(response.statusCode == HttpStatus.OK)
+        assert(response.body == "Stock asset deleted successfully")
+    }
+
+    @Test
+    fun `deleteForex should return OK when forex is deleted`() {
+        val userId = 3L
+        val assetId = 300L
+        doNothing().`when`(portfolioService).deleteForex(userId, assetId)
+
+        val response: ResponseEntity<String> = portfolioController.deleteForex(userId, assetId)
+        
+        assert(response.statusCode == HttpStatus.OK)
+        assert(response.body == "Forex asset deleted successfully")
+    }
 }
