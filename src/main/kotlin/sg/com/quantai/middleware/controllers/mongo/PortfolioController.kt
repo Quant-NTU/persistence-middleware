@@ -19,6 +19,7 @@ import sg.com.quantai.middleware.requests.assets.DeleteForexRequest
 import java.math.BigDecimal
 
 import java.time.LocalDateTime
+import java.math.BigDecimal
 
 @RestController
 @RequestMapping("/portfolios")
@@ -363,5 +364,29 @@ class PortfolioController(
                 return ResponseEntity.status(HttpStatus.OK).body(updatedForex)
             }
         }
+    @DeleteMapping("/user/{user_id}/{portfolio_id}")
+    fun deletePortfolioFromUser(
+        @PathVariable("user_id") user_id: String,
+        @PathVariable("portfolio_id") portfolio_id: String
+    ) : ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio: Portfolio = portfolioRepository.findOneByUidAndOwner(portfolio_id, user)
+        if (portfolio.main == true){
+            return  ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot delete main portfolio.")
+        }
+        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
+        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+
+        for (history in portfoliohistory){
+            val updatedHistory = history.copy(
+                portfolio = portfolio_main,
+                updatedDate = LocalDateTime.now()
+            )
+            portfolioHistoryRepository.save(updatedHistory)
+        }
+
+        val portfolio_name = portfolio.name
+        portfolioRepository.deleteByUid(portfolio_id)
+        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_name}")
     }
 }
