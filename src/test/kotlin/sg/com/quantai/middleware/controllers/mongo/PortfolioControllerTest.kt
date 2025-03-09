@@ -3,7 +3,9 @@ import sg.com.quantai.middleware.repositories.mongo.*
 import sg.com.quantai.middleware.data.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import sg.com.quantai.middleware.controllers.mongo.PortfolioController
 
+import org.mockito.Mockito.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -188,38 +190,104 @@ constructor(
     }
 
     @Test
-    fun `deleteCrypto should return OK when crypto is deleted`() {
-        val userId = 1L
-        val assetId = 100L
-        doNothing().`when`(portfolioService).deleteCrypto(userId, assetId)
+    fun `should delete crypto asset from portfolio`() {
+        val (password, salt) = hashAndSaltPassword("Password")
+        val user = userRepository.save(User(name = "TestUser", email = "testuser@example.com", password = password, salt = salt))
+        val userId = user.uid
+        val portfolio = saveOnePortfolio(owner = user)
+        val portfolioId = portfolio.uid
 
-        val response: ResponseEntity<String> = portfolioController.deleteCrypto(userId, assetId)
-        
-        assert(response.statusCode == HttpStatus.OK)
-        assert(response.body == "Crypto asset deleted successfully")
+        // Add a crypto asset
+        saveOneAsset(portfolio = portfolio)
+
+        // Verify the asset exists in the portfolio
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertTrue(response.body?.size ?: 0 > 0)
+
+        // Send the delete request for the crypto asset
+        val deleteRequest = DeleteCryptoRequest(name = "TestAsset")
+        val deleteResponse = restTemplate.exchange(
+            getRootUrl() + "/asset/crypto/$portfolioId",
+            HttpMethod.DELETE,
+            HttpEntity(deleteRequest, HttpHeaders()),
+            String::class.java
+        )
+        assertEquals("Deleted crypto asset TestAsset", deleteResponse.body)
+
+        // Verify the asset is deleted
+        response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertTrue(response.body?.none { it.name == "TestAsset" } == true)
     }
 
     @Test
-    fun `deleteStock should return OK when stock is deleted`() {
-        val userId = 2L
-        val assetId = 200L
-        doNothing().`when`(portfolioService).deleteStock(userId, assetId)
+    fun `should delete forex asset from portfolio`() {
+        val (password, salt) = hashAndSaltPassword("Password")
+        val user = userRepository.save(User(name = "TestUser", email = "testuser@example.com", password = password, salt = salt))
+        val userId = user.uid
+        val portfolio = saveOnePortfolio(owner = user)
+        val portfolioId = portfolio.uid
 
-        val response: ResponseEntity<String> = portfolioController.deleteStock(userId, assetId)
-        
-        assert(response.statusCode == HttpStatus.OK)
-        assert(response.body == "Stock asset deleted successfully")
+        // Add a forex asset
+        saveOneForexAsset(portfolio = portfolio)
+
+        // Verify the asset exists in the portfolio
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertTrue(response.body?.size ?: 0 > 0)
+
+        // Send the delete request for the forex asset
+        val deleteRequest = DeleteForexRequest(name = "TestForex")
+        val deleteResponse = restTemplate.exchange(
+            getRootUrl() + "/asset/forex/$portfolioId",
+            HttpMethod.DELETE,
+            HttpEntity(deleteRequest, HttpHeaders()),
+            String::class.java
+        )
+        assertEquals("Deleted forex asset TestForex", deleteResponse.body)
+
+        // Verify the asset is deleted
+        response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertTrue(response.body?.none { it.name == "TestForex" } == true)
     }
 
     @Test
-    fun `deleteForex should return OK when forex is deleted`() {
-        val userId = 3L
-        val assetId = 300L
-        doNothing().`when`(portfolioService).deleteForex(userId, assetId)
+    fun `should delete stock asset from portfolio`() {
+        val (password, salt) = hashAndSaltPassword("Password")
+        val user = userRepository.save(User(name = "TestUser", email = "testuser@example.com", password = password, salt = salt))
+        val userId = user.uid
+        val portfolio = saveOnePortfolio(owner = user)
+        val portfolioId = portfolio.uid
 
-        val response: ResponseEntity<String> = portfolioController.deleteForex(userId, assetId)
-        
-        assert(response.statusCode == HttpStatus.OK)
-        assert(response.body == "Forex asset deleted successfully")
+        // Add a stock asset
+        saveOneStockAsset(portfolio = portfolio)
+
+        // Verify the asset exists in the portfolio
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertTrue(response.body?.size ?: 0 > 0)
+
+        // Send the delete request for the stock asset
+        val deleteRequest = DeleteStockRequest(name = "TestStock")
+        val deleteResponse = restTemplate.exchange(
+            getRootUrl() + "/asset/stock/$portfolioId",
+            HttpMethod.DELETE,
+            HttpEntity(deleteRequest, HttpHeaders()),
+            String::class.java
+        )
+        assertEquals("Deleted stock asset TestStock", deleteResponse.body)
+
+        // Verify the asset is deleted
+        response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
+        assertEquals(200, response.statusCode.value())
+        assertNotNull(response.body)
+        assertTrue(response.body?.none { it.name == "TestStock" } == true)
     }
 }

@@ -22,14 +22,14 @@ apply plugin: "io.spring.dependency-management"
 compileKotlin {
     kotlinOptions {
         freeCompilerArgs = ["-Xjsr305=strict"]
-        jvmTarget = "21"
+        jvmTarget = "17"
     }
 }
 
 compileTestKotlin {
     kotlinOptions {
         freeCompilerArgs = ["-Xjsr305=strict"]
-        jvmTarget = "21"
+        jvmTarget = "17"
     }
 }
 
