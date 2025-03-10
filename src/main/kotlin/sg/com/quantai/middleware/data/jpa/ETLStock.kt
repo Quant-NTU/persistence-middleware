@@ -1,4 +1,4 @@
-package sg.com.quantai.middleware.data
+package sg.com.quantai.middleware.data.jpa
 
 import jakarta.persistence.*
 import java.sql.Timestamp
@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "transformed_stock_data")
-class TransformedStock(
+class ETLStock(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long = 0,

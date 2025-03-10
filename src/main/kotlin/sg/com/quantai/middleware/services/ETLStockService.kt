@@ -3,8 +3,8 @@ package sg.com.quantai.middleware.services
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import sg.com.quantai.middleware.data.TransformedStock
-import sg.com.quantai.middleware.repositories.jpa.TransformedStockRepository
+import sg.com.quantai.middleware.data.jpa.ETLStock
+import sg.com.quantai.middleware.repositories.jpa.ETLStockRepository
 import java.sql.Timestamp
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -12,38 +12,25 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 @Service
-class TransformedStockService(private val repository: TransformedStockRepository) {
-    private val logger: Logger = LoggerFactory.getLogger(TransformedStockService::class.java)
+class ETLStockService(private val repository: ETLStockRepository) {
+    private val logger: Logger = LoggerFactory.getLogger(ETLStockService::class.java)
 
-    // Date format patterns to try when parsing dates
     private val dateFormatPatterns = listOf(
         "yyyy-MM-dd",
         "yyyy-MM-dd'T'HH:mm:ss",
         "yyyy-MM-dd HH:mm:ss"
     )
 
-    /**
-     * Get all transformed stock data
-     */
-    fun getAllTransformedData(): List<TransformedStock> =
+    fun getAllTransformedData(): List<ETLStock> =
         repository.findAll()
 
-    /**
-     * Get transformed data for a specific ticker
-     */
-    fun getTransformedDataByTicker(ticker: String): List<TransformedStock> =
+    fun getTransformedDataByTicker(ticker: String): List<ETLStock> =
         repository.findByTicker(ticker.uppercase())
 
-    /**
-     * Get distinct tickers from transformed data
-     */
     fun getDistinctTickers(): List<String> =
         repository.findDistinctTickers()
 
-    /**
-     * Get transformed data within a date range
-     */
-    fun getTransformedDataByDateRange(startDate: String, endDate: String): List<TransformedStock> {
+    fun getTransformedDataByDateRange(startDate: String, endDate: String): List<ETLStock> {
         try {
             val start = parseDate(startDate)
             val end = parseDate(endDate)
@@ -63,14 +50,11 @@ class TransformedStockService(private val repository: TransformedStockRepository
         }
     }
 
-    /**
-     * Get transformed data for a specific ticker within a date range
-     */
     fun getTransformedDataByTickerAndDateRange(
         ticker: String,
         startDate: String,
         endDate: String
-    ): List<TransformedStock> {
+    ): List<ETLStock> {
         try {
             val start = parseDate(startDate)
             val end = parseDate(endDate)
@@ -91,25 +75,15 @@ class TransformedStockService(private val repository: TransformedStockRepository
         }
     }
 
-    /**
-     * Get latest data point for each ticker
-     */
-    fun getLatestForAllTickers(): List<TransformedStock> =
+    fun getLatestForAllTickers(): List<ETLStock> =
         repository.findLatestForAllTickers()
 
-    /**
-     * Get most recent data points for a specific ticker
-     */
-    fun getRecentDataByTicker(ticker: String, limit: Int = 30): List<TransformedStock> =
+    fun getRecentDataByTicker(ticker: String, limit: Int = 30): List<ETLStock> =
         repository.findRecentByTicker(ticker.uppercase(), limit)
 
-    /**
-     * Parse date string to LocalDateTime, trying multiple formats
-     */
     private fun parseDate(dateStr: String): LocalDateTime? {
         if (dateStr.isBlank()) return null
 
-        // First try as LocalDateTime
         for (pattern in dateFormatPatterns) {
             try {
                 val formatter = DateTimeFormatter.ofPattern(pattern)
@@ -119,7 +93,6 @@ class TransformedStockService(private val repository: TransformedStockRepository
             }
         }
 
-        // Then try as LocalDate and convert to LocalDateTime
         try {
             return LocalDate.parse(dateStr).atStartOfDay()
         } catch (e: DateTimeParseException) {

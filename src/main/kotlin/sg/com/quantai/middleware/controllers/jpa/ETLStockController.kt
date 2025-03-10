@@ -1,27 +1,21 @@
-package sg.com.quantai.middleware.controllers
+package sg.com.quantai.middleware.controllers.jpa
 
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import sg.com.quantai.middleware.data.TransformedStock
-import sg.com.quantai.middleware.services.TransformedStockService
+import sg.com.quantai.middleware.data.jpa.ETLStock
+import sg.com.quantai.middleware.services.ETLStockService
 
 @RestController
-@RequestMapping("/stock/transformed")
-class TransformedStockController(private val service: TransformedStockService) {
+@RequestMapping("/etl/stock")
+class ETLStockController(private val service: ETLStockService) {
 
-    /**
-     * Get all transformed stock data
-     */
     @GetMapping
-    fun getAllTransformedData(): ResponseEntity<List<TransformedStock>> {
+    fun getAllTransformedData(): ResponseEntity<List<ETLStock>> {
         val data = service.getAllTransformedData()
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
-    /**
-     * Get all distinct tickers
-     */
     @GetMapping("/tickers")
     fun getDistinctTickers(): ResponseEntity<List<String>> {
         val tickers = service.getDistinctTickers()
@@ -29,63 +23,48 @@ class TransformedStockController(private val service: TransformedStockService) {
         else ResponseEntity.ok(tickers)
     }
 
-    /**
-     * Get transformed data for a specific ticker
-     */
     @GetMapping("/{ticker}")
     fun getTransformedDataByTicker(
         @PathVariable ticker: String
-    ): ResponseEntity<List<TransformedStock>> {
+    ): ResponseEntity<List<ETLStock>> {
         val data = service.getTransformedDataByTicker(ticker)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
-    /**
-     * Get transformed data within a date range
-     */
     @GetMapping("/range")
     fun getTransformedDataByDateRange(
         @RequestParam startDate: String,
         @RequestParam endDate: String
-    ): ResponseEntity<List<TransformedStock>> {
+    ): ResponseEntity<List<ETLStock>> {
         val data = service.getTransformedDataByDateRange(startDate, endDate)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
-    /**
-     * Get transformed data for a specific ticker within a date range
-     */
     @GetMapping("/{ticker}/range")
     fun getTransformedDataByTickerAndDateRange(
         @PathVariable ticker: String,
         @RequestParam startDate: String,
         @RequestParam endDate: String
-    ): ResponseEntity<List<TransformedStock>> {
+    ): ResponseEntity<List<ETLStock>> {
         val data = service.getTransformedDataByTickerAndDateRange(ticker, startDate, endDate)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
-    /**
-     * Get latest data point for each ticker
-     */
     @GetMapping("/latest")
-    fun getLatestForAllTickers(): ResponseEntity<List<TransformedStock>> {
+    fun getLatestForAllTickers(): ResponseEntity<List<ETLStock>> {
         val data = service.getLatestForAllTickers()
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
-    /**
-     * Get most recent data points for a specific ticker
-     */
     @GetMapping("/{ticker}/recent")
     fun getRecentDataByTicker(
         @PathVariable ticker: String,
         @RequestParam(defaultValue = "30") limit: Int
-    ): ResponseEntity<List<TransformedStock>> {
+    ): ResponseEntity<List<ETLStock>> {
         val data = service.getRecentDataByTicker(ticker, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
