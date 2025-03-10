@@ -5,7 +5,7 @@ import java.sql.Timestamp
 
 @Entity
 @Table(name = "transformed_crypto_data")
-class TransformedCrypto(
+class ETLCrypto(
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
