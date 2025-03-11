@@ -74,7 +74,7 @@ constructor(
     private fun prepareCryptoRequest(
         portfolio_uid: String = "TestC",
         name: String = "TestAsset",
-        quantity: BigDecimal = BigDecimal(2),
+        quantity: BigDecimal = BigDecimal(1),
         purchasePrice: BigDecimal = BigDecimal(3),
         symbol: String = "TST",
         action: String = "Add",
@@ -213,7 +213,7 @@ constructor(
     }
 
     @Test
-    fun `should be able to edit a portfolio`() {
+    fun `should be able to edit a portfolio - Description`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
         val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
         val userId = user.uid
@@ -239,22 +239,48 @@ constructor(
         assertEquals(portfolio2_Id, updatedPortfolio.uid) // Id same
         assertEquals(portfolioRequest.name, updatedPortfolio.name)
         assertEquals(portfolioRequest.description, updatedPortfolio.description)
-        
-        // val cryptoRequest = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
+    }
 
-        // val updatedResponse_2 =
-        //     restTemplate.exchange(
-        //         getRootUrl() + "/asset/crypto/update/$userId",
-        //         HttpMethod.POST,
-        //         HttpEntity(cryptoRequest, HttpHeaders()),
-        //         Portfolio::class.java
-        //     )
+    @Test
+    fun `should be able to edit a portfolio - Assets`() {
+        val (password1, salt1) = hashAndSaltPassword("Password1")
+        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val userId = user.uid
 
-        // assertEquals(200, updatedResponse_2.statusCode.value())
-        // val portfoliohistory_1: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
-        // assertEquals(1, portfoliohistory_1.size)
-        // val portfoliohistory_2: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio2)
-        // assertEquals(1, portfoliohistory_2.size)
+        val portfolio1 = saveOnePortfolio(owner = user,main=true)
+        val portfolio2 = saveOnePortfolio(owner = user)
+        val portfolio2_Id = portfolio2.uid
+
+        val cryptoRequest = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
+        val updatedResponse =
+            restTemplate.exchange(
+                getRootUrl() + "/asset/crypto/update/$userId",
+                HttpMethod.POST,
+                HttpEntity(cryptoRequest, HttpHeaders()),
+                String::class.java
+            )
+
+        System.out.println("First response status: ${updatedResponse.statusCode.value()}")
+        System.out.println("First response body: ${updatedResponse.body}")
+        assertEquals(403, updatedResponse.statusCode.value())
+        assertEquals("You have no asset of the name ${cryptoRequest.name}", updatedResponse.body)
+
+        saveOneAsset(portfolio = portfolio1)
+        val cryptoRequest2 = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
+        val updatedResponse2 =
+            restTemplate.exchange(
+                getRootUrl() + "/asset/crypto/update/$userId",
+                HttpMethod.POST,
+                HttpEntity(cryptoRequest2, HttpHeaders()),
+                String::class.java
+            )
+
+        assertEquals(200, updatedResponse2.statusCode.value())
+        assertEquals("Transferred ${cryptoRequest.quantity} from default portfolio to ${portfolio2.name}.", updatedResponse2.body)
+        val portfoliohistory_1: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
+        assertEquals(1, portfoliohistory_1.size)
+        val portfoliohistory_2: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio2)
+        assertEquals(1, portfoliohistory_2.size)
     }
 
 }
