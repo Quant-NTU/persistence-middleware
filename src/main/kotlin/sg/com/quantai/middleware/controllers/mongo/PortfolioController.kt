@@ -97,7 +97,7 @@ class PortfolioController(
         return ResponseEntity.status(HttpStatus.CREATED).body(savedPortfolio)
     }
 
-    @PatchMapping("/{user_id}/{portfolio_id}")
+    @PutMapping("/{user_id}/{portfolio_id}")
     fun updatePortfolio(
         @PathVariable("user_id") userId: String,
         @PathVariable("portfolio_id") portfolioId: String,
@@ -452,4 +452,4 @@ class PortfolioController(
         portfolioRepository.deleteByUid(portfolio_id)
         return ResponseEntity.ok().body("Deleted portfolio ${portfolio_name}")
     }
-}}
+}
