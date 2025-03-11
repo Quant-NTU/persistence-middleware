@@ -42,6 +42,10 @@ constructor(
     @BeforeEach
     fun setUp() {
         portfolioRepository.deleteAll()
+        portfolioHistoryRepository.deleteAll()
+        cryptoRepository.deleteAll()
+        stockRepository.deleteAll()
+        forexRepository.deleteAll()
         userRepository.deleteAll()
     }
 
@@ -222,8 +226,6 @@ constructor(
         val portfolio2 = saveOnePortfolio(owner = user)
         val portfolio2_Id = portfolio2.uid
 
-        saveOneAsset(portfolio = portfolio1)
-
         val portfolioRequest = preparePortfolioRequest()
         val updatedResponse =
             restTemplate.exchange(
@@ -260,13 +262,11 @@ constructor(
                 String::class.java
             )
 
-        System.out.println("First response status: ${updatedResponse.statusCode.value()}")
-        System.out.println("First response body: ${updatedResponse.body}")
         assertEquals(403, updatedResponse.statusCode.value())
         assertEquals("You have no asset of the name ${cryptoRequest.name}", updatedResponse.body)
 
         saveOneAsset(portfolio = portfolio1)
-        val cryptoRequest2 = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
+        val cryptoRequest2 = prepareCryptoRequest(portfolio_uid = portfolio2_Id,action="Remove")
         val updatedResponse2 =
             restTemplate.exchange(
                 getRootUrl() + "/asset/crypto/update/$userId",
@@ -274,11 +274,21 @@ constructor(
                 HttpEntity(cryptoRequest2, HttpHeaders()),
                 String::class.java
             )
+        assertEquals(403, updatedResponse2.statusCode.value())
+        assertEquals("Cannot remove more than amount in portfolio.", updatedResponse2.body)
 
-        assertEquals(200, updatedResponse2.statusCode.value())
-        assertEquals("Transferred ${cryptoRequest.quantity} from default portfolio to ${portfolio2.name}.", updatedResponse2.body)
+        val cryptoRequest3 = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
+        val updatedResponse3 =
+            restTemplate.exchange(
+                getRootUrl() + "/asset/crypto/update/$userId",
+                HttpMethod.POST,
+                HttpEntity(cryptoRequest3, HttpHeaders()),
+                String::class.java
+            )
+        assertEquals(200, updatedResponse3.statusCode.value())
+        assertEquals("Transferred ${cryptoRequest.quantity} from default portfolio to ${portfolio2.name}.", updatedResponse3.body)
         val portfoliohistory_1: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
-        assertEquals(1, portfoliohistory_1.size)
+        assertEquals(2, portfoliohistory_1.size)
         val portfoliohistory_2: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio2)
         assertEquals(1, portfoliohistory_2.size)
     }

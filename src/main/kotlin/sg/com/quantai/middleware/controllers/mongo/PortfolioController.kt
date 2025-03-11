@@ -220,7 +220,7 @@ class PortfolioController(
 
     fun checkPortfolioAssetQuantity(quantity: BigDecimal, asset: Asset, portfolio: Portfolio): Boolean {
         val portfolioHistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
-        var portfolioAssetQty = BigDecimal.ZERO
+        var portfolioAssetQty = BigDecimal(0)
     
         for (history in portfolioHistory) {
             if (history.asset.name == asset.name) {
@@ -240,6 +240,9 @@ class PortfolioController(
         @PathVariable("user_id") user_id: String,
         @RequestBody request: StockRequest
     ) : ResponseEntity<Any> {
+        if(!stockRepository.existsByName(request.name)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
+        }
         val user = userRepository.findOneByUid(user_id)
         val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
         val stock = stockRepository.findByName(request.name)
@@ -302,16 +305,14 @@ class PortfolioController(
         @PathVariable("user_id") user_id: String,
         @RequestBody request: CryptoRequest
     ) : ResponseEntity<Any> {
-        val user = userRepository.findOneByUid(user_id)
-        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
-        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
-
         if(!cryptoRepository.existsByName(request.name)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
         }
-        
+        val user = userRepository.findOneByUid(user_id)
+        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
         val crypto = cryptoRepository.findByName(request.name)
-        
+        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
+                
         if (request.action=="Add"){
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio_main)
             if (quantityCheck == false){
@@ -370,12 +371,14 @@ class PortfolioController(
         @PathVariable("user_id") user_id: String,
         @RequestBody request: ForexRequest
     ) : ResponseEntity<Any> {
+        if(!forexRepository.existsByName(request.name)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
+        }
         val user = userRepository.findOneByUid(user_id)
         val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
         val forex = forexRepository.findByName(request.name)
         val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
 
-        
         if (request.action=="Add"){
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio_main)
             if (quantityCheck == false){
