@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.http.HttpStatus
+import org.springframework.dao.EmptyResultDataAccessException
 import sg.com.quantai.middleware.data.mongo.*
 
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
@@ -223,19 +224,15 @@ class PortfolioController(
     
         for (history in portfolioHistory) {
             if (history.asset.name == asset.name) {
-                portfolioAssetQty = if (history.action == PortfolioActionEnum.ADD_MANUAL_ASSET || history.action == PortfolioActionEnum.BUY_REAL_ASSET) {
-                    portfolioAssetQty + history.quantity
+                if (history.action == PortfolioActionEnum.ADD_MANUAL_ASSET || history.action == PortfolioActionEnum.BUY_REAL_ASSET) {
+                    portfolioAssetQty = portfolioAssetQty.add(history.quantity)
                 } else {
-                    portfolioAssetQty - history.quantity
+                    portfolioAssetQty = portfolioAssetQty.subtract(history.quantity)
                 }
             }
         }
     
-        return if (portfolioAssetQty < quantity) {
-            false
-        } else {
-            true
-        }
+        return portfolioAssetQty.compareTo(quantity) >= 0
     }
 
     @PostMapping("/asset/stock/update/{user_id}")
@@ -307,9 +304,13 @@ class PortfolioController(
     ) : ResponseEntity<Any> {
         val user = userRepository.findOneByUid(user_id)
         val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
-        val crypto = cryptoRepository.findByName(request.name)
         val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
 
+        if(!cryptoRepository.existsByName(request.name)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
+        }
+        
+        val crypto = cryptoRepository.findByName(request.name)
         
         if (request.action=="Add"){
             val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio_main)
