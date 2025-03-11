@@ -231,7 +231,7 @@ constructor(
                 getRootUrl() + "/$userId/$portfolio2_Id",
                 HttpMethod.PUT,
                 HttpEntity(portfolioRequest, HttpHeaders()),
-                Pipeline::class.java
+                Portfolio::class.java
             )
 
         val updatedPortfolio = portfolioRepository.findOneByUid(portfolio2_Id)
@@ -247,7 +247,7 @@ constructor(
                 getRootUrl() + "/asset/crypto/update/$userId",
                 HttpMethod.PUT,
                 HttpEntity(cryptoRequest, HttpHeaders()),
-                Pipeline::class.java
+                Portfolio::class.java
             )
 
         assertEquals(200, updatedResponse_2.statusCode.value())

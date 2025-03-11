@@ -426,6 +426,8 @@ class PortfolioController(
             )
             return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
         }
+    }
+    
     @DeleteMapping("/user/{user_id}/{portfolio_id}")
     fun deletePortfolioFromUser(
         @PathVariable("user_id") user_id: String,
