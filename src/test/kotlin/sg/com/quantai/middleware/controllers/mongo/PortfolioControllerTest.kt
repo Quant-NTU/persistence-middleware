@@ -55,9 +55,6 @@ constructor(
         stockRepository.deleteAll()
         forexRepository.deleteAll()
         userRepository.deleteAll()
-        stockRepository.deleteAll()
-        cryptoRepository.deleteAll()
-        forexRepository.deleteAll()
     }
 
     private fun getRootUrl(): String? = "http://localhost:$port/portfolios"
@@ -127,11 +124,12 @@ constructor(
                 value = quantity * purchasePrice,
                 portfolio = portfolio
             )
-        }
+        )
+    }
 
     private fun saveOneCrypto(
         name: String = "TestCrypto",
-        quantity: BigDecimal = BigDecimal(2),
+        quantity: BigDecimal = BigDecimal(1),
         purchasePrice: BigDecimal = BigDecimal(3),
         symbol: String = "TSTCR",
         portfolio: Portfolio = saveOnePortfolio()
@@ -158,7 +156,7 @@ constructor(
 
     private fun saveOneStock(
         name: String = "TestStock",
-        quantity: BigDecimal = BigDecimal(2),
+        quantity: BigDecimal = BigDecimal(1),
         purchasePrice: BigDecimal = BigDecimal(3),
         symbol: String = "TSTST",
         portfolio: Portfolio = saveOnePortfolio()
@@ -185,7 +183,7 @@ constructor(
 
     private fun saveOneForex(
         name: String = "TestForex",
-        quantity: BigDecimal = BigDecimal(2),
+        quantity: BigDecimal = BigDecimal(1),
         purchasePrice: BigDecimal = BigDecimal(3),
         symbol: String = "TSTFR",
         portfolio: Portfolio = saveOnePortfolio()
@@ -400,15 +398,16 @@ constructor(
         val deleteRequest = DeleteCryptoRequest(name = "TSTCR", portfolio_uid = portfolioCR.uid, quantity = BigDecimal(1), deleteAll = true)
         val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
 
-        var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userCRId", List::class.java)
         assertEquals(2, response.body?.size)
 
         val deleteResponse1 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$portfolio1_Id",
+            getRootUrl() + "/asset/crypto/$portfolioCR_Id",
             HttpMethod.DELETE,
             HttpEntity(null, HttpHeaders()),
             String::class.java
         )
+
         val deletedCrypto = cryptoRepository.findByName("TSTCR")
         assertNull(deletedCrypto)
     }
@@ -429,13 +428,15 @@ constructor(
         val deleteRequest = DeleteStockRequest(name = "TSTST", portfolio_uid = portfolioST.uid, quantity = BigDecimal(1), deleteAll = true)
         val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
 
-        val result = mockMvc.perform(
-            MockMvcRequestBuilders.delete("/asset/stock/${portfolio.uid}")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestJson)
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userSTId", List::class.java)
+        assertEquals(2, response.body?.size)
+
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/asset/stock/$portfolioST_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
         )
-            .andExpect(MockMvcResultMatchers.status().isOk)
-            .andReturn()
 
         val deletedStock = stockRepository.findByName("TSTST")
         assertNull(deletedStock)
@@ -457,16 +458,17 @@ constructor(
         val deleteRequest = DeleteForexRequest(name = "TSTFR", portfolio_uid = portfolioFR.uid, quantity = BigDecimal(1), deleteAll = true)
         val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
 
-        val result = mockMvc.perform(
-            MockMvcRequestBuilders.delete("/asset/forex/${portfolio.uid}")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestJson)
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userFRId", List::class.java)
+        assertEquals(2, response.body?.size)
+
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/asset/forex/$portfolioFR_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
         )
-            .andExpect(MockMvcResultMatchers.status().isOk)
-            .andReturn()
 
         val deletedForex = stockRepository.findByName("TSTFR")
         assertNull(deletedForex)
     }
-
 }

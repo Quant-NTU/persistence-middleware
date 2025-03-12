@@ -339,7 +339,6 @@ class PortfolioController(
         }
     }
 
-
     @DeleteMapping("/asset/forex/{portfolio_id}")
     fun deleteForex(
         @PathVariable("portfolio_id") portfolioId: String,
@@ -396,8 +395,6 @@ class PortfolioController(
             } 
         }
     }
-    
-
     
     fun checkPortfolioAssetQuantity(quantity: BigDecimal, asset: Asset, portfolio: Portfolio): Boolean {
         val portfolioHistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
