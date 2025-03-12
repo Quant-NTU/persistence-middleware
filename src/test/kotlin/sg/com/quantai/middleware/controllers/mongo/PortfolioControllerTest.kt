@@ -43,9 +43,7 @@ constructor(
     private val cryptoRepository: CryptoRepository,
     private val stockRepository: StockRepository,
     private val forexRepository: ForexRepository,
-    private val userRepository: UserRepository,
-    private lateinit var webApplicationContext: WebApplicationContext,
-    private lateinit var mockMvc: MockMvc
+    private val userRepository: UserRepository
 ) {
     @LocalServerPort protected var port: Int = 0
 
@@ -53,6 +51,9 @@ constructor(
     fun setUp() {
         portfolioRepository.deleteAll()
         userRepository.deleteAll()
+        stockRepository.deleteAll()
+        cryptoRepository.deleteAll()
+        forexRepository.deleteAll()
     }
 
     private fun getRootUrl(): String? = "http://localhost:$port/portfolios"
@@ -294,14 +295,15 @@ constructor(
         val deleteRequest = DeleteCryptoRequest(name = "TSTCR", portfolio_uid = portfolioCR.uid, quantity = BigDecimal(1), deleteAll = true)
         val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
 
-        val result = mockMvc.perform(
-            MockMvcRequestBuilders.delete("/asset/crypto/${portfolio.uid}")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestJson)
-        )
-            .andExpect(MockMvcResultMatchers.status().isOk)
-            .andReturn()
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        assertEquals(2, response.body?.size)
 
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/user/$user1Id/$portfolio1_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
+        )
         val deletedCrypto = cryptoRepository.findByName("TSTCR")
         assertNull(deletedCrypto)
     }
