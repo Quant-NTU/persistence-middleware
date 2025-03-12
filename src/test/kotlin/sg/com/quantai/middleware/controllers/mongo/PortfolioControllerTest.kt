@@ -188,106 +188,213 @@ constructor(
         val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
         assertEquals(2, portfoliohistory.size)
     }
+}
 
-    @Test
-    fun `should delete crypto asset from portfolio`() {
-        val (password, salt) = hashAndSaltPassword("Password")
-        val user = userRepository.save(User(name = "TestUser", email = "testuser@example.com", password = password, salt = salt))
-        val userId = user.uid
-        val portfolio = saveOnePortfolio(owner = user)
-        val portfolioId = portfolio.uid
+class PortfolioControllerTest2 
+@Autowired 
+constructor(
+    private val restTemplate: TestRestTemplate,
+    private val portfolioRepository: PortfolioRepository,
+    private val portfolioHistoryRepository: PortfolioHistoryRepository,
+    private val cryptoRepository: CryptoRepository,
+    private val stockRepository: StockRepository,
+    private val forexRepository: ForexRepository,
+    private val userRepository: UserRepository
+) {
+    @LocalServerPort protected var port: Int = 0
 
-        // Add a crypto asset
-        saveOneAsset(portfolio = portfolio)
+    @BeforeEach
+    fun setUp() {
+        portfolioRepository.deleteAll()
+        userRepository.deleteAll()
+    }
 
-        // Verify the asset exists in the portfolio
-        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body?.size ?: 0 > 0)
-
-        // Send the delete request for the crypto asset
-        val deleteRequest = DeleteCryptoRequest(name = "TestAsset")
-        val deleteResponse = restTemplate.exchange(
-            getRootUrl() + "/asset/crypto/$portfolioId",
-            HttpMethod.DELETE,
-            HttpEntity(deleteRequest, HttpHeaders()),
-            String::class.java
+    private fun getRootUrl(): String? = "http://localhost:$port/portfolios"
+    
+    private fun saveOnePortfolio(
+        name: String = "Test",
+        description: String = "Test2",
+        main: Boolean = false,
+        owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
+    )=  
+        portfolioRepository.save(
+            Portfolio(   
+                name = name,
+                description = description,
+                main = main,
+                owner = owner,
+            )
         )
-        assertEquals("Deleted crypto asset TestAsset", deleteResponse.body)
 
-        // Verify the asset is deleted
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body?.none { it.name == "TestAsset" } == true)
+        private fun saveOneCrypto(
+            name: String = "TestCrypto",
+            quantity: BigDecimal = BigDecimal(2),
+            purchasePrice: BigDecimal = BigDecimal(3),
+            symbol: String = "TSTCR",
+            portfolio: Portfolio = saveOnePortfolio()
+        ) {
+            val crypto = cryptoRepository.save(
+                Crypto(
+                    name = name,
+                    quantity = quantity,
+                    purchasePrice = purchasePrice,
+                    symbol = symbol
+                )
+            )
+        
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = quantity,
+                    value = quantity * purchasePrice,
+                    portfolio = portfolio
+                )
+            )
+        }
+
+        private fun saveOneStock(
+            name: String = "TestStock",
+            quantity: BigDecimal = BigDecimal(2),
+            purchasePrice: BigDecimal = BigDecimal(3),
+            symbol: String = "TSTST",
+            portfolio: Portfolio = saveOnePortfolio()
+        ) {
+            val Stock = stockRepository.save(
+                Stock(
+                    name = name,
+                    quantity = quantity,
+                    purchasePrice = purchasePrice,
+                    symbol = symbol
+                )
+            )
+        
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = quantity,
+                    value = quantity * purchasePrice,
+                    portfolio = portfolio
+                )
+            )
+        }
+
+        private fun saveOneForex(
+            name: String = "TestForex",
+            quantity: BigDecimal = BigDecimal(2),
+            purchasePrice: BigDecimal = BigDecimal(3),
+            symbol: String = "TSTFR",
+            portfolio: Portfolio = saveOnePortfolio()
+        ) {
+            val Forex = forexRepository.save(
+                Forex(
+                    name = name,
+                    quantity = quantity,
+                    purchasePrice = purchasePrice,
+                    symbol = symbol
+                )
+            )
+        
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                    quantity = quantity,
+                    value = quantity * purchasePrice,
+                    portfolio = portfolio
+                )
+            )
+        }
+        
+
+    private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
+
+        val generatedSalt = salt ?: BCrypt.gensalt()
+        val hashedPassword = BCrypt.hashpw(plainTextPassword, generatedSalt)
+
+        return Pair(hashedPassword, generatedSalt)
     }
 
     @Test
-    fun `should delete forex asset from portfolio`() {
-        val (password, salt) = hashAndSaltPassword("Password")
-        val user = userRepository.save(User(name = "TestUser", email = "testuser@example.com", password = password, salt = salt))
-        val userId = user.uid
-        val portfolio = saveOnePortfolio(owner = user)
-        val portfolioId = portfolio.uid
+    fun `should delete crypto asset from portfolio`() {
+        val (passwordCR, saltCR) = hashAndSaltPassword("PasswordCR")
+        val userCR = userRepository.save(User(name="NameCR", email="EmailCR", password=passwordCR, salt=saltCR))
+        val userCRId = userCR.uid
 
-        // Add a forex asset
-        saveOneForexAsset(portfolio = portfolio)
+        val portfolioCR = saveOnePortfolio(owner=userCR, main=true)
+        val portfolioCR_Id = portfolioCR.uid
+        val saveOneCrypto(portfolio = portfolioCR)
 
-        // Verify the asset exists in the portfolio
-        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body?.size ?: 0 > 0)
+        // Ensure the Crypto asset exists
+        assertNotNull(cryptoRepository.findByName("TSTCR"))
 
-        // Send the delete request for the forex asset
-        val deleteRequest = DeleteForexRequest(name = "TestForex")
-        val deleteResponse = restTemplate.exchange(
-            getRootUrl() + "/asset/forex/$portfolioId",
-            HttpMethod.DELETE,
-            HttpEntity(deleteRequest, HttpHeaders()),
-            String::class.java
+        val deleteRequest = DeleteCryptoRequest(name = "TSTCR", portfolio_uid = portfolioCR.uid, deleteAll = true)
+        val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
+
+        val result = mockMvc.perform(
+            MockMvcRequestBuilders.delete("/asset/crypto/${portfolio.uid}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestJson)
         )
-        assertEquals("Deleted forex asset TestForex", deleteResponse.body)
+            .andExpect(MockMvcResultMatchers.status().isOk)
+            .andReturn()
 
-        // Verify the asset is deleted
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body?.none { it.name == "TestForex" } == true)
+        val deletedCrypto = cryptoRepository.findByName("TSTCR")
+        assertNull(deletedCrypto)
     }
 
     @Test
     fun `should delete stock asset from portfolio`() {
-        val (password, salt) = hashAndSaltPassword("Password")
-        val user = userRepository.save(User(name = "TestUser", email = "testuser@example.com", password = password, salt = salt))
-        val userId = user.uid
-        val portfolio = saveOnePortfolio(owner = user)
-        val portfolioId = portfolio.uid
+        val (passwordST, saltST) = hashAndSaltPassword("PasswordST")
+        val userST = userRepository.save(User(name="NameST", email="EmailST", password=passwordST, salt=saltST))
+        val userSTId = userST.uid
 
-        // Add a stock asset
-        saveOneStockAsset(portfolio = portfolio)
+        val portfolioST = saveOnePortfolio(owner=userST, main=true)
+        val portfolioST_Id = portfolioST.uid
+        val saveOneStock(portfolio = portfolioST)
 
-        // Verify the asset exists in the portfolio
-        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body?.size ?: 0 > 0)
+        assertNotNull(stockRepository.findByName("TSTST"))
 
-        // Send the delete request for the stock asset
-        val deleteRequest = DeleteStockRequest(name = "TestStock")
-        val deleteResponse = restTemplate.exchange(
-            getRootUrl() + "/asset/stock/$portfolioId",
-            HttpMethod.DELETE,
-            HttpEntity(deleteRequest, HttpHeaders()),
-            String::class.java
+        val deleteRequest = DeleteStockRequest(name = "TSTST", portfolio_uid = portfolioST.uid, deleteAll = true)
+        val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
+
+        val result = mockMvc.perform(
+            MockMvcRequestBuilders.delete("/asset/stock/${portfolio.uid}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestJson)
         )
-        assertEquals("Deleted stock asset TestStock", deleteResponse.body)
+            .andExpect(MockMvcResultMatchers.status().isOk)
+            .andReturn()
 
-        // Verify the asset is deleted
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$userId/$portfolioId", List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertTrue(response.body?.none { it.name == "TestStock" } == true)
+        val deletedStock = stockRepository.findByName("TSTST")
+        assertNull(deletedStock)
+    }
+
+    @Test
+    fun `should delete Forex asset from portfolio`() {
+        val (passwordFR, saltFR) = hashAndSaltPassword("PasswordFR")
+        val userFR = userRepository.save(User(name="NameFR", email="EmailFR", password=passwordFR, salt=saltFR))
+        val userFRId = userFR.uid
+
+        val portfolioFR = saveOnePortfolio(owner=userFR, main=true)
+        val portfolioFR_Id = portfolioFR.uid
+        val saveOneForex(portfolio = portfolioFR)
+
+        assertNotNull(forexRepository.findByName("TSTFR"))
+
+        val deleteRequest = DeleteForexRequest(name = "TSTFR", portfolio_uid = portfolioFR.uid, deleteAll = true)
+        val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
+
+        val result = mockMvc.perform(
+            MockMvcRequestBuilders.delete("/asset/forex/${portfolio.uid}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestJson)
+        )
+            .andExpect(MockMvcResultMatchers.status().isOk)
+            .andReturn()
+
+        val deletedForex = stockRepository.findByName("TSTFR")
+        assertNull(deletedForex)
     }
 }
