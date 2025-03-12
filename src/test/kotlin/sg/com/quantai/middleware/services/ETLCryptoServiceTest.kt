@@ -2,19 +2,19 @@ package sg.com.quantai.middleware.services
 
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
-import sg.com.quantai.middleware.data.jpa.TransformedCrypto
-import sg.com.quantai.middleware.repositories.jpa.TransformedCryptoRepository
+import sg.com.quantai.middleware.data.jpa.ETLCrypto
+import sg.com.quantai.middleware.repositories.jpa.ETLCryptoRepository
 import java.sql.Timestamp
 import kotlin.test.assertEquals
 
-class TransformedCryptoServiceTest {
+class ETLCryptoServiceTest {
 
-    private val repository: TransformedCryptoRepository = mock(TransformedCryptoRepository::class.java)
-    private val service = TransformedCryptoService(repository)
+    private val repository: ETLCryptoRepository = mock(ETLCryptoRepository::class.java)
+    private val service = ETLCryptoService(repository)
 
     @Test
     fun `getAllTransformedData returns all data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(repository.findAll()).thenReturn(mockData)
 
         val result = service.getAllTransformedData()
@@ -25,7 +25,7 @@ class TransformedCryptoServiceTest {
 
     @Test
     fun `getTransformedDataBySymbolAndCurrency returns filtered data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(repository.findBySymbolAndCurrency("BTC", "USD")).thenReturn(mockData)
 
         val result = service.getTransformedDataBySymbolAndCurrency("BTC", "USD")
@@ -36,7 +36,7 @@ class TransformedCryptoServiceTest {
 
     @Test
     fun `getTransformedDataByTimestampRange returns data within range`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         val startTime = Timestamp.valueOf("2024-01-01 00:00:00")
         val endTime = Timestamp.valueOf("2024-01-02 00:00:00")
 
@@ -50,7 +50,7 @@ class TransformedCryptoServiceTest {
 
     @Test
     fun `getRecentTransformedData returns recent data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(repository.findRecent()).thenReturn(mockData)
 
         val result = service.getRecentTransformedData()

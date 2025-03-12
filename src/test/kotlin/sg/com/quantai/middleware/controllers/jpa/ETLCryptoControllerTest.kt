@@ -4,21 +4,21 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import sg.com.quantai.middleware.data.jpa.TransformedCrypto
-import sg.com.quantai.middleware.services.TransformedCryptoService
+import sg.com.quantai.middleware.data.jpa.ETLCrypto
+import sg.com.quantai.middleware.services.ETLCryptoService
 import kotlin.test.assertEquals
 
-class TransformedCryptoControllerTest {
+class ETLCryptoControllerTest {
 
-    private val service: TransformedCryptoService = mock(TransformedCryptoService::class.java)
-    private val controller = TransformedCryptoController(service)
+    private val service: ETLCryptoService = mock(ETLCryptoService::class.java)
+    private val controller = ETLCryptoController(service)
 
     @Test
     fun `getAllTransformedData returns OK with data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(service.getAllTransformedData()).thenReturn(mockData)
 
-        val response: ResponseEntity<List<TransformedCrypto>> = controller.getAllTransformedData()
+        val response: ResponseEntity<List<ETLCrypto>> = controller.getAllTransformedData()
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(mockData, response.body)
@@ -28,14 +28,14 @@ class TransformedCryptoControllerTest {
     fun `getAllTransformedData returns NO_CONTENT when no data`() {
         `when`(service.getAllTransformedData()).thenReturn(emptyList())
 
-        val response: ResponseEntity<List<TransformedCrypto>> = controller.getAllTransformedData()
+        val response: ResponseEntity<List<ETLCrypto>> = controller.getAllTransformedData()
 
         assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
     }
 
     @Test
     fun `getTransformedDataBySymbolAndCurrency returns OK with data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(service.getTransformedDataBySymbolAndCurrency("BTC", "USD")).thenReturn(mockData)
 
         val response = controller.getTransformedDataBySymbolAndCurrency("BTC", "USD")
@@ -55,7 +55,7 @@ class TransformedCryptoControllerTest {
 
     @Test
     fun `getTransformedDataByTimestampRange returns OK with data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(service.getTransformedDataByTimestampRange("2024-01-01 00:00:00", "2024-01-02 00:00:00"))
             .thenReturn(mockData)
 
@@ -77,7 +77,7 @@ class TransformedCryptoControllerTest {
 
     @Test
     fun `getRecentTransformedData returns OK with data`() {
-        val mockData = listOf(TransformedCrypto())
+        val mockData = listOf(ETLCrypto())
         `when`(service.getRecentTransformedData()).thenReturn(mockData)
 
         val response = controller.getRecentTransformedData()
