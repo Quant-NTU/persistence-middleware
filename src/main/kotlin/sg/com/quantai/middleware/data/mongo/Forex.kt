@@ -8,16 +8,16 @@ import java.time.LocalDateTime
 
 @Document(collection = "forex")
 @TypeAlias("forex")
-class Forex (
-    name: String?,
-    quantity: BigDecimal,
-    purchasePrice: BigDecimal,
+data class Forex (
+    override val name: String?,
+    override val quantity: BigDecimal,
+    override val purchasePrice: BigDecimal,
 
     // Pass along parent fields to constructor with defaults
-    _id: ObjectId = ObjectId.get(),
-    uid: String = ObjectId.get().toString(),
-    createdDate: LocalDateTime = LocalDateTime.now(),
-    updatedDate: LocalDateTime = LocalDateTime.now(),
+    override val _id: ObjectId = ObjectId.get(),
+    override val uid: String = ObjectId.get().toString(),
+    override val createdDate: LocalDateTime = LocalDateTime.now(),
+    override val updatedDate: LocalDateTime = LocalDateTime.now(),
 
     // Custom  columns
     val currencyPair: String?

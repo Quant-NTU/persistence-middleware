@@ -10,3 +10,10 @@ class ForexRequest (
     val currencyPair: String,
     val action: String? = "Add",
 )
+
+class DeleteForexRequest(
+    val portfolio_uid: String,
+    val name: String,
+    val quantity: BigDecimal,
+    val deleteAll: Boolean
+)

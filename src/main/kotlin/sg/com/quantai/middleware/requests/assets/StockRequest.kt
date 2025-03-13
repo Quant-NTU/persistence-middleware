@@ -10,3 +10,10 @@ class StockRequest (
     val ticker: String,
     val action: String? = "Add",
 )
+
+class DeleteStockRequest(
+    val portfolio_uid: String,
+    val name: String,
+    val quantity: BigDecimal,
+    val deleteAll: Boolean
+)
