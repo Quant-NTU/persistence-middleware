@@ -7,7 +7,8 @@ class ForexRequest (
     val name: String,
     val quantity: BigDecimal,
     val purchasePrice: BigDecimal,
-    val currencyPair: String
+    val currencyPair: String,
+    val action: String? = "Add",
 )
 
 class DeleteForexRequest(

@@ -7,7 +7,8 @@ class StockRequest (
     val name: String,
     val quantity: BigDecimal,
     val purchasePrice: BigDecimal,
-    val ticker: String
+    val ticker: String,
+    val action: String? = "Add",
 )
 
 class DeleteStockRequest(

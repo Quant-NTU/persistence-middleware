@@ -7,7 +7,8 @@ class CryptoRequest (
     val name: String,
     val quantity: BigDecimal,
     val purchasePrice: BigDecimal,
-    val symbol: String
+    val symbol: String,
+    val action: String? = "Add",
 )
 
 class DeleteCryptoRequest(
@@ -16,3 +17,4 @@ class DeleteCryptoRequest(
     val quantity: BigDecimal,
     val deleteAll: Boolean
 )
+
