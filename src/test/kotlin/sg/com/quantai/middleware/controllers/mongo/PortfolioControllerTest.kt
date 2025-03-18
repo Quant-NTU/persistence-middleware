@@ -1,9 +1,12 @@
 import sg.com.quantai.middleware.repositories.mongo.*
 import sg.com.quantai.middleware.data.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
+import sg.com.quantai.middleware.requests.assets.*
 import sg.com.quantai.middleware.requests.assets.CryptoRequest
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import sg.com.quantai.middleware.controllers.mongo.PortfolioController
 
+import org.mockito.Mockito.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -14,6 +17,11 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers
+import org.springframework.http.MediaType
 import java.time.LocalDateTime
 import org.mindrot.jbcrypt.BCrypt
 import org.springframework.http.HttpEntity
@@ -119,6 +127,87 @@ constructor(
         )
     }
 
+    private fun saveOneCrypto(
+        name: String = "TestCrypto",
+        quantity: BigDecimal = BigDecimal(1),
+        purchasePrice: BigDecimal = BigDecimal(3),
+        symbol: String = "TSTCR",
+        portfolio: Portfolio = saveOnePortfolio()
+    ) {
+        val crypto = cryptoRepository.save(
+            Crypto(
+                name = name,
+                quantity = quantity,
+                purchasePrice = purchasePrice,
+                symbol = symbol
+            )
+        )
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = crypto,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = quantity,
+                value = quantity * purchasePrice,
+                portfolio = portfolio
+            )
+        )
+    }
+
+    private fun saveOneStock(
+        name: String = "TestStock",
+        quantity: BigDecimal = BigDecimal(1),
+        purchasePrice: BigDecimal = BigDecimal(3),
+        symbol: String = "TSTST",
+        portfolio: Portfolio = saveOnePortfolio()
+    ) {
+        val Stock = stockRepository.save(
+            Stock(
+                name = name,
+                quantity = quantity,
+                purchasePrice = purchasePrice,
+                ticker = symbol
+            )
+        )
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = Stock,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = quantity,
+                value = quantity * purchasePrice,
+                portfolio = portfolio
+            )
+        )
+    }
+
+    private fun saveOneForex(
+        name: String = "TestForex",
+        quantity: BigDecimal = BigDecimal(1),
+        purchasePrice: BigDecimal = BigDecimal(3),
+        symbol: String = "TSTFR",
+        portfolio: Portfolio = saveOnePortfolio()
+    ) {
+        val Forex = forexRepository.save(
+            Forex(
+                name = name,
+                quantity = quantity,
+                purchasePrice = purchasePrice,
+                currencyPair = symbol
+            )
+        )
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = Forex,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = quantity,
+                value = quantity * purchasePrice,
+                portfolio = portfolio
+            )
+        )
+    }
+
     private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
 
         val generatedSalt = salt ?: BCrypt.gensalt()
@@ -216,7 +305,6 @@ constructor(
         assertEquals(2, portfoliohistory.size)
     }
 
-    @Test
     fun `should be able to edit a portfolio - Description`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
         val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
@@ -293,4 +381,94 @@ constructor(
         assertEquals(1, portfoliohistory_2.size)
     }
 
+    @Test
+    fun `should delete crypto asset from portfolio`() {
+        val (passwordCR, saltCR) = hashAndSaltPassword("PasswordCR")
+        val userCR = userRepository.save(User(name="NameCR", email="EmailCR", password=passwordCR, salt=saltCR))
+        val userCRId = userCR.uid
+
+        val portfolioCR = saveOnePortfolio(owner=userCR, main=true)
+        val portfolioCR_Id = portfolioCR.uid
+
+        saveOneCrypto(portfolio = portfolioCR)
+
+        // Ensure the Crypto asset exists
+        assertNotNull(cryptoRepository.findByName("TSTCR"))
+
+        val deleteRequest = DeleteCryptoRequest(name = "TSTCR", portfolio_uid = portfolioCR.uid, quantity = BigDecimal(1), deleteAll = true)
+        val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
+
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userCRId", List::class.java)
+        assertEquals(2, response.body?.size)
+
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/asset/crypto/$portfolioCR_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
+        )
+
+        val deletedCrypto = cryptoRepository.findByName("TSTCR")
+        assertNull(deletedCrypto)
+    }
+
+    @Test
+    fun `should delete stock asset from portfolio`() {
+        val (passwordST, saltST) = hashAndSaltPassword("PasswordST")
+        val userST = userRepository.save(User(name="NameST", email="EmailST", password=passwordST, salt=saltST))
+        val userSTId = userST.uid
+
+        val portfolioST = saveOnePortfolio(owner=userST, main=true)
+        val portfolioST_Id = portfolioST.uid
+
+        saveOneStock(portfolio = portfolioST)
+
+        assertNotNull(stockRepository.findByName("TSTST"))
+
+        val deleteRequest = DeleteStockRequest(name = "TSTST", portfolio_uid = portfolioST.uid, quantity = BigDecimal(1), deleteAll = true)
+        val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
+
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userSTId", List::class.java)
+        assertEquals(2, response.body?.size)
+
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/asset/stock/$portfolioST_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
+        )
+
+        val deletedStock = stockRepository.findByName("TSTST")
+        assertNull(deletedStock)
+    }
+
+    @Test
+    fun `should delete Forex asset from portfolio`() {
+        val (passwordFR, saltFR) = hashAndSaltPassword("PasswordFR")
+        val userFR = userRepository.save(User(name="NameFR", email="EmailFR", password=passwordFR, salt=saltFR))
+        val userFRId = userFR.uid
+
+        val portfolioFR = saveOnePortfolio(owner=userFR, main=true)
+        val portfolioFR_Id = portfolioFR.uid
+
+        saveOneForex(portfolio = portfolioFR)
+
+        assertNotNull(forexRepository.findByName("TSTFR"))
+
+        val deleteRequest = DeleteForexRequest(name = "TSTFR", portfolio_uid = portfolioFR.uid, quantity = BigDecimal(1), deleteAll = true)
+        val requestJson = ObjectMapper().writeValueAsString(deleteRequest)
+
+        var response = restTemplate.getForEntity(getRootUrl() + "/user/$userFRId", List::class.java)
+        assertEquals(2, response.body?.size)
+
+        val deleteResponse1 = restTemplate.exchange(
+            getRootUrl() + "/asset/forex/$portfolioFR_Id",
+            HttpMethod.DELETE,
+            HttpEntity(null, HttpHeaders()),
+            String::class.java
+        )
+
+        val deletedForex = stockRepository.findByName("TSTFR")
+        assertNull(deletedForex)
+    }
 }

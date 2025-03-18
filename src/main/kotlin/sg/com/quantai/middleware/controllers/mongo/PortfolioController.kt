@@ -14,6 +14,10 @@ import sg.com.quantai.middleware.requests.PortfolioRequest
 import sg.com.quantai.middleware.requests.assets.CryptoRequest
 import sg.com.quantai.middleware.requests.assets.ForexRequest
 import sg.com.quantai.middleware.requests.assets.StockRequest
+import sg.com.quantai.middleware.requests.assets.DeleteCryptoRequest
+import sg.com.quantai.middleware.requests.assets.DeleteStockRequest
+import sg.com.quantai.middleware.requests.assets.DeleteForexRequest
+
 import java.time.LocalDateTime
 import java.math.BigDecimal
 
@@ -218,6 +222,180 @@ class PortfolioController(
         return ResponseEntity.status(HttpStatus.OK).body(forex)
     }
 
+    @DeleteMapping("/asset/crypto/{portfolio_id}")
+    fun deleteCrypto(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: DeleteCryptoRequest
+    ): ResponseEntity<Crypto> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+
+        val crypto = cryptoRepository.findByName(request.name)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        if (request.deleteAll) {
+            
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = crypto,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = crypto.quantity,
+                    value = crypto.quantity.multiply(crypto.purchasePrice),
+                    portfolio = portfolio
+                )
+            )
+            //Delete asset entirely
+            cryptoRepository.delete(crypto)
+            return ResponseEntity.status(HttpStatus.OK).body(crypto)
+        } 
+        
+        else {
+            val newQuantity = crypto.quantity.subtract(request.quantity)
+            if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                //If resulting quantity is zero or negative, delete the asset completely
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = crypto,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = crypto.quantity,
+                        value = crypto.quantity.multiply(crypto.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                cryptoRepository.delete(crypto)
+                return ResponseEntity.status(HttpStatus.OK).body(crypto)
+            } 
+            
+            else {
+                //Update asset quantity and history
+                val updatedCrypto = crypto.copy(quantity = newQuantity, updatedDate = LocalDateTime.now())
+                cryptoRepository.save(updatedCrypto)
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = updatedCrypto,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = request.quantity,
+                        value = request.quantity.multiply(crypto.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                return ResponseEntity.status(HttpStatus.OK).body(updatedCrypto)
+            }
+        }
+    }
+
+    @DeleteMapping("/asset/stock/{portfolio_id}")
+    fun deleteStock(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: DeleteStockRequest
+    ): ResponseEntity<Stock> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val stock = stockRepository.findByName(request.name)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        if (request.deleteAll) {
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = stock,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = stock.quantity,
+                    value = stock.quantity.multiply(stock.purchasePrice),
+                    portfolio = portfolio
+                )
+            )
+            stockRepository.delete(stock)
+            return ResponseEntity.status(HttpStatus.OK).body(stock)
+        } 
+        
+        else {
+            val newQuantity = stock.quantity.subtract(request.quantity)
+            if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = stock,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = stock.quantity,
+                        value = stock.quantity.multiply(stock.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                stockRepository.delete(stock)
+                return ResponseEntity.status(HttpStatus.OK).body(stock)
+            } 
+            
+            else {
+                val updatedStock = stock.copy(quantity = newQuantity, updatedDate = LocalDateTime.now())
+                stockRepository.save(updatedStock)
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = updatedStock,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = request.quantity,
+                        value = request.quantity.multiply(stock.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                return ResponseEntity.status(HttpStatus.OK).body(updatedStock)
+            }
+        }
+    }
+
+    @DeleteMapping("/asset/forex/{portfolio_id}")
+    fun deleteForex(
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: DeleteForexRequest
+    ): ResponseEntity<Forex> {
+        val portfolio: Portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
+        val forex = forexRepository.findByName(request.name)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+
+        if (request.deleteAll) {
+            portfolioHistoryRepository.save(
+                PortfolioHistory(
+                    asset = forex,
+                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                    quantity = forex.quantity,
+                    value = forex.quantity.multiply(forex.purchasePrice),
+                    portfolio = portfolio
+                )
+            )
+            forexRepository.delete(forex)
+            return ResponseEntity.status(HttpStatus.OK).body(forex)
+        } 
+        
+        else {
+            val newQuantity = forex.quantity.subtract(request.quantity)
+            if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = forex,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = forex.quantity,
+                        value = forex.quantity.multiply(forex.purchasePrice),
+                        portfolio = portfolio
+                    )
+                )
+                forexRepository.delete(forex)
+                return ResponseEntity.status(HttpStatus.OK).body(forex)
+            } 
+            
+            else {
+                val updatedForex = forex.copy(quantity = newQuantity, updatedDate = LocalDateTime.now())
+                forexRepository.save(updatedForex)
+                portfolioHistoryRepository.save(
+                    PortfolioHistory(
+                        asset = updatedForex,
+                        action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                        quantity = forex.quantity,
+                        value = forex.quantity.multiply(forex.purchasePrice),
+                        portfolio = portfolio
+                )
+            )
+            forexRepository.delete(forex)
+            return ResponseEntity.status(HttpStatus.OK).body(forex)
+            } 
+        }
+    }
+    
     fun checkPortfolioAssetQuantity(quantity: BigDecimal, asset: Asset, portfolio: Portfolio): Boolean {
         val portfolioHistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
         var portfolioAssetQty = BigDecimal(0)
@@ -233,227 +411,5 @@ class PortfolioController(
         }
     
         return portfolioAssetQty.compareTo(quantity) >= 0
-    }
-
-    @PostMapping("/asset/stock/update/{user_id}")
-    fun updateStock(
-        @PathVariable("user_id") user_id: String,
-        @RequestBody request: StockRequest
-    ) : ResponseEntity<Any> {
-        if(!stockRepository.existsByName(request.name)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
-        }
-        val user = userRepository.findOneByUid(user_id)
-        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
-        val stock = stockRepository.findByName(request.name)
-        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
-
-        if (request.action=="Add"){
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio_main)
-            if (quantityCheck == false){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
-            }
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = stock,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio,
-                )
-            )
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = stock,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio_main,
-                )
-            )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
-        }
-        else {
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,stock,portfolio)
-            if (quantityCheck == false){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
-            }
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = stock,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio_main,
-                )
-            )
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = stock,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio,
-                )
-            )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
-        }
-    }
-
-    @PostMapping("/asset/crypto/update/{user_id}")
-    fun updateCrypto(
-        @PathVariable("user_id") user_id: String,
-        @RequestBody request: CryptoRequest
-    ) : ResponseEntity<Any> {
-        if(!cryptoRepository.existsByName(request.name)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
-        }
-        val user = userRepository.findOneByUid(user_id)
-        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
-        val crypto = cryptoRepository.findByName(request.name)
-        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
-                
-        if (request.action=="Add"){
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio_main)
-            if (quantityCheck == false){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
-            }
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = crypto,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio,
-                )
-            )
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = crypto,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio_main,
-                )
-            )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
-        }
-        else {
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,crypto,portfolio)
-            if (quantityCheck == false){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
-            }
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = crypto,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio_main,
-                )
-            )
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = crypto,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio,
-                )
-            )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
-        }
-    }
-    
-
-    @PostMapping("/asset/forex/update/{user_id}")
-    fun updateForex(
-        @PathVariable("user_id") user_id: String,
-        @RequestBody request: ForexRequest
-    ) : ResponseEntity<Any> {
-        if(!forexRepository.existsByName(request.name)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You have no asset of the name ${request.name}")
-        }
-        val user = userRepository.findOneByUid(user_id)
-        val portfolio = portfolioRepository.findOneByUid(request.portfolio_uid)
-        val forex = forexRepository.findByName(request.name)
-        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
-
-        if (request.action=="Add"){
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio_main)
-            if (quantityCheck == false){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot add more than amount in default portfolio.")
-            }
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = forex,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio,
-                )
-            )
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = forex,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio_main,
-                )
-            )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from default portfolio to ${portfolio.name}.")
-        }
-        else {
-            val quantityCheck = checkPortfolioAssetQuantity(request.quantity,forex,portfolio)
-            if (quantityCheck == false){
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot remove more than amount in portfolio.")
-            }
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = forex,
-                    action = PortfolioActionEnum.ADD_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio_main,
-                )
-            )
-            portfolioHistoryRepository.save(
-                PortfolioHistory(
-                    asset = forex,
-                    action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
-                    quantity = request.quantity,
-                    value = request.quantity * request.purchasePrice,
-                    portfolio = portfolio,
-                )
-            )
-            return ResponseEntity.status(HttpStatus.OK).body("Transferred ${request.quantity} from ${portfolio.name} to default.")
-        }
-    }
-    
-    @DeleteMapping("/user/{user_id}/{portfolio_id}")
-    fun deletePortfolioFromUser(
-        @PathVariable("user_id") user_id: String,
-        @PathVariable("portfolio_id") portfolio_id: String
-    ) : ResponseEntity<Any> {
-        val user = userRepository.findOneByUid(user_id)
-        val portfolio: Portfolio = portfolioRepository.findOneByUidAndOwner(portfolio_id, user)
-        if (portfolio.main == true){
-            return  ResponseEntity.status(HttpStatus.FORBIDDEN).body("Cannot delete main portfolio.")
-        }
-        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio)
-        val portfolio_main = portfolioRepository.findByOwnerAndMain(user,true)
-
-        for (history in portfoliohistory){
-            val updatedHistory = history.copy(
-                portfolio = portfolio_main,
-                updatedDate = LocalDateTime.now()
-            )
-            portfolioHistoryRepository.save(updatedHistory)
-        }
-
-        val portfolio_name = portfolio.name
-        portfolioRepository.deleteByUid(portfolio_id)
-        return ResponseEntity.ok().body("Deleted portfolio ${portfolio_name}")
     }
 }
