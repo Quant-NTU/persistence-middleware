@@ -29,9 +29,9 @@ class TransformedForexControllerTest {
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
         )
-        `when`(service.getAllTransformedData()).thenReturn(mockData)
+        `when`(service.getAllTransformedData(100)).thenReturn(mockData)
 
-        val response: ResponseEntity<List<TransformedForex>> = controller.getAllTransformedData()
+        val response: ResponseEntity<List<TransformedForex>> = controller.getAllTransformedData(100)
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(mockData, response.body)
@@ -39,9 +39,9 @@ class TransformedForexControllerTest {
 
     @Test
     fun `getAllTransformedData returns NO_CONTENT when no data`() {
-        `when`(service.getAllTransformedData()).thenReturn(emptyList())
+        `when`(service.getAllTransformedData(100)).thenReturn(emptyList())
 
-        val response: ResponseEntity<List<TransformedForex>> = controller.getAllTransformedData()
+        val response: ResponseEntity<List<TransformedForex>> = controller.getAllTransformedData(100)
 
         assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
     }
@@ -61,9 +61,9 @@ class TransformedForexControllerTest {
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
         )
-        `when`(service.getTransformedDataByCurrencyPair("EUR/USD")).thenReturn(mockData)
+        `when`(service.getTransformedDataByCurrencyPair("EUR/USD", 100)).thenReturn(mockData)
 
-        val response = controller.getTransformedDataByCurrencyPair("EUR/USD")
+        val response = controller.getTransformedDataByCurrencyPair("EUR/USD", 100)
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(mockData, response.body)
@@ -71,9 +71,9 @@ class TransformedForexControllerTest {
 
     @Test
     fun `getTransformedDataByCurrencyPair returns NO_CONTENT when no data`() {
-        `when`(service.getTransformedDataByCurrencyPair("EUR/USD")).thenReturn(emptyList())
+        `when`(service.getTransformedDataByCurrencyPair("EUR/USD", 100)).thenReturn(emptyList())
 
-        val response = controller.getTransformedDataByCurrencyPair("EUR/USD")
+        val response = controller.getTransformedDataByCurrencyPair("EUR/USD", 100)
 
         assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
     }
@@ -93,10 +93,10 @@ class TransformedForexControllerTest {
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
         )
-        `when`(service.getTransformedDataByTimestampRange("2024-01-01 00:00:00", "2024-01-31 23:59:59"))
+        `when`(service.getTransformedDataByTimestampRange("2024-01-01 00:00:00", "2024-01-31 23:59:59", 100))
             .thenReturn(mockData)
 
-        val response = controller.getTransformedDataByTimestampRange("2024-01-01 00:00:00", "2024-01-31 23:59:59")
+        val response = controller.getTransformedDataByTimestampRange("2024-01-01 00:00:00", "2024-01-31 23:59:59", 100)
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(mockData, response.body)
@@ -117,9 +117,9 @@ class TransformedForexControllerTest {
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
         )
-        `when`(service.getRecentTransformedData()).thenReturn(mockData)
+        `when`(service.getRecentTransformedData(100)).thenReturn(mockData)
 
-        val response = controller.getRecentTransformedData()
+        val response = controller.getRecentTransformedData(100)
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(mockData, response.body)
@@ -140,7 +140,7 @@ class TransformedForexControllerTest {
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
         )
-        `when`(service.getAllTransformedData()).thenReturn(mockData)
+        `when`(service.getAllTransformedDataLegacy()).thenReturn(mockData)
 
         val response = controller.getForexStats()
 

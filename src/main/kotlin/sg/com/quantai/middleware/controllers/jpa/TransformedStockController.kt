@@ -10,17 +10,20 @@ import org.springframework.web.bind.annotation.*
 class TransformedStockController(private val service: TransformedStockService) {
 
     @GetMapping
-    fun getAllTransformedData(): ResponseEntity<List<TransformedStock>> {
-        val data = service.getAllTransformedData()
+    fun getAllTransformedData(
+        @RequestParam(defaultValue = "100") limit: Int
+    ): ResponseEntity<List<TransformedStock>> {
+        val data = service.getAllTransformedData(limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
     @GetMapping("/{symbol}")
     fun getTransformedDataBySymbol(
-        @PathVariable symbol: String
+        @PathVariable symbol: String,
+        @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedStock>> {
-        val data = service.getTransformedDataBySymbol(symbol)
+        val data = service.getTransformedDataBySymbol(symbol, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
@@ -28,23 +31,26 @@ class TransformedStockController(private val service: TransformedStockService) {
     @GetMapping("/range")
     fun getTransformedDataByTimestampRange(
         @RequestParam startTime: String,
-        @RequestParam endTime: String
+        @RequestParam endTime: String,
+        @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedStock>> {
-        val data = service.getTransformedDataByTimestampRange(startTime, endTime)
+        val data = service.getTransformedDataByTimestampRange(startTime, endTime, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
     @GetMapping("/recent")
-    fun getRecentTransformedData(): ResponseEntity<List<TransformedStock>> {
-        val data = service.getRecentTransformedData()
+    fun getRecentTransformedData(
+        @RequestParam(defaultValue = "100") limit: Int
+    ): ResponseEntity<List<TransformedStock>> {
+        val data = service.getRecentTransformedData(limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
     @GetMapping("/stats")
     fun getStockStats(): ResponseEntity<List<Map<String, Any>>> {
-        val data = service.getAllTransformedData()
+        val data = service.getAllTransformedDataLegacy()  // Use legacy method for complete stats
         val stats = mapOf(
             "total" to data.size,
             "totalVolume" to data.sumOf { it.volume },

@@ -8,19 +8,44 @@ import java.sql.Timestamp
 @Service
 class TransformedStockService(private val repository: TransformedStockRepository) {
 
-    fun getAllTransformedData(): List<TransformedStock> = repository.findAll().toList()
-
-    fun getTransformedDataBySymbol(symbol: String): List<TransformedStock> =
-        repository.findBySymbol(symbol)
-
-    fun getTransformedDataByTimestampRange(startTime: String, endTime: String): List<TransformedStock> {
-        val startTimestamp = Timestamp.valueOf(startTime)
-        val endTimestamp = Timestamp.valueOf(endTime)
-        return repository.findByTimestampRange(startTimestamp, endTimestamp)
+    companion object {
+        const val DEFAULT_LIMIT = 100  // Sensible default limit
+        const val MAX_LIMIT = 1000     // Maximum allowed limit
     }
 
-    fun getRecentTransformedData(): List<TransformedStock> = repository.findRecent()
+    fun getAllTransformedData(limit: Int? = null): List<TransformedStock> {
+        val effectiveLimit = validateLimit(limit ?: DEFAULT_LIMIT)
+        return repository.findAllWithLimit(effectiveLimit)
+    }
+
+    fun getTransformedDataBySymbol(symbol: String, limit: Int? = null): List<TransformedStock> {
+        val effectiveLimit = validateLimit(limit ?: DEFAULT_LIMIT)
+        return repository.findBySymbolWithLimit(symbol, effectiveLimit)
+    }
+
+    fun getTransformedDataByTimestampRange(startTime: String, endTime: String, limit: Int? = null): List<TransformedStock> {
+        val startTimestamp = Timestamp.valueOf(startTime)
+        val endTimestamp = Timestamp.valueOf(endTime)
+        val effectiveLimit = validateLimit(limit ?: DEFAULT_LIMIT)
+        return repository.findByTimestampRangeWithLimit(startTimestamp, endTimestamp, effectiveLimit)
+    }
+
+    fun getRecentTransformedData(limit: Int? = null): List<TransformedStock> {
+        val effectiveLimit = validateLimit(limit ?: DEFAULT_LIMIT)
+        return repository.findRecentWithLimit(effectiveLimit)
+    }
 
     fun getTransformedDataBySymbolOrderByTimestamp(symbol: String): List<TransformedStock> =
         repository.findBySymbolOrderByTimestampDesc(symbol)
+
+    // Legacy method for backward compatibility - but now with default limit
+    fun getAllTransformedDataLegacy(): List<TransformedStock> = repository.findAll().toList()
+
+    private fun validateLimit(limit: Int): Int {
+        return when {
+            limit <= 0 -> DEFAULT_LIMIT
+            limit > MAX_LIMIT -> MAX_LIMIT
+            else -> limit
+        }
+    }
 }

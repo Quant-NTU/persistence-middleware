@@ -10,17 +10,20 @@ import org.springframework.web.bind.annotation.*
 class TransformedForexController(private val service: TransformedForexService) {
 
     @GetMapping
-    fun getAllTransformedData(): ResponseEntity<List<TransformedForex>> {
-        val data = service.getAllTransformedData()
+    fun getAllTransformedData(
+        @RequestParam(defaultValue = "100") limit: Int
+    ): ResponseEntity<List<TransformedForex>> {
+        val data = service.getAllTransformedData(limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
     @GetMapping("/{currencyPair}")
     fun getTransformedDataByCurrencyPair(
-        @PathVariable currencyPair: String
+        @PathVariable currencyPair: String,
+        @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedForex>> {
-        val data = service.getTransformedDataByCurrencyPair(currencyPair)
+        val data = service.getTransformedDataByCurrencyPair(currencyPair, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
@@ -28,23 +31,26 @@ class TransformedForexController(private val service: TransformedForexService) {
     @GetMapping("/range")
     fun getTransformedDataByTimestampRange(
         @RequestParam startTime: String,
-        @RequestParam endTime: String
+        @RequestParam endTime: String,
+        @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedForex>> {
-        val data = service.getTransformedDataByTimestampRange(startTime, endTime)
+        val data = service.getTransformedDataByTimestampRange(startTime, endTime, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
     @GetMapping("/recent")
-    fun getRecentTransformedData(): ResponseEntity<List<TransformedForex>> {
-        val data = service.getRecentTransformedData()
+    fun getRecentTransformedData(
+        @RequestParam(defaultValue = "100") limit: Int
+    ): ResponseEntity<List<TransformedForex>> {
+        val data = service.getRecentTransformedData(limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
 
     @GetMapping("/stats")
     fun getForexStats(): ResponseEntity<List<Map<String, Any>>> {
-        val data = service.getAllTransformedData()
+        val data = service.getAllTransformedDataLegacy()  // Use legacy method for complete stats
         val stats = mapOf(
             "total" to data.size,
             "avgPrice" to if (data.isNotEmpty()) data.map { it.close }.average() else 0.0,

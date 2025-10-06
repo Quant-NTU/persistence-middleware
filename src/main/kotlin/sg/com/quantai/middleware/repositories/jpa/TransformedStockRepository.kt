@@ -18,4 +18,17 @@ interface TransformedStockRepository : JpaRepository<TransformedStock, Long> {
 
     @Query("SELECT t FROM TransformedStock t WHERE t.symbol = :symbol ORDER BY t.timestamp DESC")
     fun findBySymbolOrderByTimestampDesc(@Param("symbol") symbol: String): List<TransformedStock>
+
+    // Pagination support methods
+    @Query("SELECT t FROM TransformedStock t ORDER BY t.timestamp DESC LIMIT :limit")
+    fun findAllWithLimit(@Param("limit") limit: Int): List<TransformedStock>
+
+    @Query("SELECT t FROM TransformedStock t WHERE t.symbol = :symbol ORDER BY t.timestamp DESC LIMIT :limit")
+    fun findBySymbolWithLimit(@Param("symbol") symbol: String, @Param("limit") limit: Int): List<TransformedStock>
+
+    @Query("SELECT t FROM TransformedStock t WHERE t.timestamp BETWEEN :startTime AND :endTime ORDER BY t.timestamp DESC LIMIT :limit")
+    fun findByTimestampRangeWithLimit(@Param("startTime") startTime: Timestamp, @Param("endTime") endTime: Timestamp, @Param("limit") limit: Int): List<TransformedStock>
+
+    @Query("SELECT t FROM TransformedStock t ORDER BY t.timestamp DESC LIMIT :limit")
+    fun findRecentWithLimit(@Param("limit") limit: Int): List<TransformedStock>
 }
