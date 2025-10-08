@@ -71,6 +71,7 @@ class TestSandboxController(
                 mapOf(
                     "symbol" to symbol,
                     "quantity" to totalQuantity,
+                    "value" to totalValue,
                     "purchasePrice" to purchasePrice
                 )
             }

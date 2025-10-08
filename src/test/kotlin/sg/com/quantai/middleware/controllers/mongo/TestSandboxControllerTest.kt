@@ -122,5 +122,7 @@ class TestSandboxControllerUnitTest {
         assertEquals(2, aggregatedAssets.size)
         assertTrue(aggregatedAssets.any { it["symbol"] == "BTC" && it["quantity"] == BigDecimal("2.0") })
         assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["quantity"] == BigDecimal("3.0") })
+        assertTrue(aggregatedAssets.any { it["symbol"] == "BTC" && it["value"] == BigDecimal("20000") })
+        assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["value"] == BigDecimal("6000") })
     }
 }
