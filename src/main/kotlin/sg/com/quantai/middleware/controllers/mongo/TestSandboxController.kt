@@ -21,6 +21,7 @@ import sg.com.quantai.middleware.repositories.mongo.PortfolioHistoryRepository
 import sg.com.quantai.middleware.data.mongo.Asset
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @RestController
 @RequestMapping("/test-sandbox")
@@ -47,8 +48,8 @@ class TestSandboxController(
         return WebClient.builder().baseUrl(sandboxUrl).build()
     }
 
-    fun aggregatePortfolioHistory(portfolioHistory: List<PortfolioHistory>): List<Map<String, Any>> {
-        return portfolioHistory
+    fun aggregatePortfolioHistory(portfolioHistoryList: List<PortfolioHistory>): List<Map<String, Any>> {
+        return portfolioHistoryList
             .groupBy { history -> history.asset.name ?: "UNKNOWN" }
             .map { (symbol, entries) ->
                 val totalQuantity: BigDecimal = entries.sumOf { entry ->
@@ -65,9 +66,11 @@ class TestSandboxController(
                         else -> entry.value
                     }
                 }
-
-                val purchasePrice: BigDecimal = entries.first().asset.purchasePrice
-
+                // if no quantity, puchase price set to 0
+                val purchasePrice: BigDecimal =
+                    if (totalQuantity.signum() == 0) BigDecimal.ZERO
+                    else totalValue.divide(totalQuantity, 8, RoundingMode.HALF_UP)
+                
                 mapOf(
                     "symbol" to symbol,
                     "quantity" to totalQuantity,
@@ -107,23 +110,6 @@ class TestSandboxController(
                             .block()
         val strategyCode = s3Response!!.body
 
-        // Retrieve portfolio
-        // TODO: Hardcoded portfolioId=1
-        // val portfolio = mapOf(
-        //     "uid" to "1",
-        //     "assets" to listOf(
-        //         mapOf(
-        //             "symbol" to "BTC",
-        //             "quantity" to 1.0,
-        //             "purchasePrice" to 96000
-        //         ),
-        //         mapOf(
-        //             "symbol" to "ETH",
-        //             "quantity" to 1.0,
-        //             "purchasePrice" to 4000
-        //         )
-        //     )
-        // )
         val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
         
         if (portfolio == null) {
@@ -140,27 +126,6 @@ class TestSandboxController(
             "uid" to portfolio.uid,
             "assets" to aggregatedAssets
         )   
-        // val aggregatedAssets = portfolioHistory
-        //     .groupBy { history: PortfolioHistory -> history.asset.name ?: "UNKNOWN" } 
-        //     .map { (symbol, entries: List<PortfolioHistory>) ->
-        //         val totalQuantity: BigDecimal = entries.sumOf { it.quantity }
-        //         val purchasePrice: BigDecimal = entries.first().asset.purchasePrice
-
-        //         mapOf(
-        //             "symbol" to symbol,
-        //             "quantity" to totalQuantity,
-        //             "purchasePrice" to purchasePrice
-        //         )
-        //     }
-
-
-        //     val portfolioJson = mapOf(
-        //         "uid" to portfolio.uid,
-        //         "assets" to aggregatedAssets
-        //     )
-
-
-
 
         // Call Python Sandbox API to execute the strategy
         try {

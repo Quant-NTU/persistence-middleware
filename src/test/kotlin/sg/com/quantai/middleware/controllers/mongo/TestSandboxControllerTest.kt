@@ -114,15 +114,25 @@ class TestSandboxControllerUnitTest {
                 quantity = asset1.quantity,
                 value = BigDecimal("10000"),
                 portfolio = portfolio
+            ),
+            PortfolioHistory(
+                asset = asset3,
+                action = PortfolioActionEnum.REMOVE_MANUAL_ASSET,
+                quantity = asset3.quantity,
+                value = BigDecimal("6000"),
+                portfolio = portfolio
             )
         )
 
         val aggregatedAssets = controller.aggregatePortfolioHistory(history)
-
+        
         assertEquals(2, aggregatedAssets.size)
         assertTrue(aggregatedAssets.any { it["symbol"] == "BTC" && it["quantity"] == BigDecimal("2.0") })
-        assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["quantity"] == BigDecimal("3.0") })
+        assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["quantity"] == BigDecimal("0.0") })
         assertTrue(aggregatedAssets.any { it["symbol"] == "BTC" && it["value"] == BigDecimal("20000") })
-        assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["value"] == BigDecimal("6000") })
+        assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["value"] == BigDecimal("0") })
+        assertTrue(aggregatedAssets.any { it["symbol"] == "BTC" && it["purchasePrice"] == BigDecimal("10000.00000000") })
+        assertTrue(aggregatedAssets.any { it["symbol"] == "ETH" && it["purchasePrice"] == BigDecimal.ZERO })
+
     }
 }
