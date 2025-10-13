@@ -14,11 +14,22 @@ import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.client.WebClient
 import com.fasterxml.jackson.databind.ObjectMapper
 
+import sg.com.quantai.middleware.data.mongo.Portfolio
+import sg.com.quantai.middleware.data.mongo.PortfolioHistory
+import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
+import sg.com.quantai.middleware.repositories.mongo.PortfolioHistoryRepository
+import sg.com.quantai.middleware.data.mongo.Asset
+import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import java.math.BigDecimal
+import java.math.RoundingMode
+
 @RestController
 @RequestMapping("/test-sandbox")
 class TestSandboxController(
     private val strategiesRepository: StrategyRepository,
-    private val usersRepository: UserRepository
+    private val usersRepository: UserRepository,
+    private val portfolioRepository: PortfolioRepository,
+    private val portfolioHistoryRepository: PortfolioHistoryRepository
 ) {
     @Value("\${quantai.temp.s3.path}") var tempDirectory: String = "temp" //FIXME: Use value from properties instead of hardcoded solution
     @Value("\${quantai.persistence.s3.url}") var s3Url: String = "http://quant-ai-persistence-s3:8080" //FIXME: Use value from properties instead of hardcoded solution
@@ -36,6 +47,39 @@ class TestSandboxController(
     private fun sandboxWebClient() : WebClient {
         return WebClient.builder().baseUrl(sandboxUrl).build()
     }
+
+    fun aggregatePortfolioHistory(portfolioHistoryList: List<PortfolioHistory>): List<Map<String, Any>> {
+        return portfolioHistoryList
+            .groupBy { history -> history.asset.name ?: "UNKNOWN" }
+            .map { (symbol, entries) ->
+                val totalQuantity: BigDecimal = entries.sumOf { entry ->
+                    when (entry.action) {
+                        PortfolioActionEnum.SELL_REAL_ASSET,
+                        PortfolioActionEnum.REMOVE_MANUAL_ASSET -> entry.quantity.negate()
+                        else -> entry.quantity
+                    }
+                }
+                val totalValue: BigDecimal = entries.sumOf { entry ->
+                    when (entry.action) {
+                        PortfolioActionEnum.SELL_REAL_ASSET,
+                        PortfolioActionEnum.REMOVE_MANUAL_ASSET -> entry.value.negate()
+                        else -> entry.value
+                    }
+                }
+                // if no quantity, puchase price set to 0
+                val purchasePrice: BigDecimal =
+                    if (totalQuantity.signum() == 0) BigDecimal.ZERO
+                    else totalValue.divide(totalQuantity, 8, RoundingMode.HALF_UP)
+                
+                mapOf(
+                    "symbol" to symbol,
+                    "quantity" to totalQuantity,
+                    "value" to totalValue,
+                    "purchasePrice" to purchasePrice
+                )
+            }
+    }
+
 
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
@@ -66,23 +110,22 @@ class TestSandboxController(
                             .block()
         val strategyCode = s3Response!!.body
 
-        // Retrieve portfolio
-        // TODO: Hardcoded portfolioId=1
-        val portfolio = mapOf(
-            "uid" to "1",
-            "assets" to listOf(
-                mapOf(
-                    "symbol" to "BTC",
-                    "quantity" to 1.0,
-                    "purchasePrice" to 96000
-                ),
-                mapOf(
-                    "symbol" to "ETH",
-                    "quantity" to 1.0,
-                    "purchasePrice" to 4000
-                )
-            )
-        )
+        val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
+        
+        if (portfolio == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
+        }
+
+        val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
+
+        // sum orders to construct portfolio
+        val aggregatedAssets = aggregatePortfolioHistory(portfolioHistory)
+
+
+        val portfolioJson = mapOf(
+            "uid" to portfolio.uid,
+            "assets" to aggregatedAssets
+        )   
 
         // Call Python Sandbox API to execute the strategy
         try {
@@ -90,7 +133,7 @@ class TestSandboxController(
                 .post()
                 .uri("/strategies/user/${userId}/${strategyId}/execute")
                 .bodyValue(mapOf(
-                    "portfolio" to portfolio,
+                    "portfolio" to portfolioJson, //portfolioJson
                     "strategyCode" to strategyCode
                 ))
                 .exchangeToMono { response ->
