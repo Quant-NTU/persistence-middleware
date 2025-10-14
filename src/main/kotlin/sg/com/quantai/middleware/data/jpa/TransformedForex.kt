@@ -15,6 +15,9 @@ class TransformedForex(
     var currencyPair: String,
 
     @Column(nullable = false)
+    var interval: String,
+
+    @Column(nullable = false)
     var open: Double,
 
     @Column(nullable = false)
@@ -26,9 +29,6 @@ class TransformedForex(
     @Column(nullable = false)
     var close: Double,
 
-    @Column(name = "avg_price")
-    var avgPrice: Double? = null,
-
     @Column(name = "price_change")
     var priceChange: Double? = null,
 
@@ -38,11 +38,11 @@ class TransformedForex(
     constructor() : this(
         id = 0,
         currencyPair = "",
+        interval = "1day",
         open = 0.0,
         high = 0.0,
         low = 0.0,
         close = 0.0,
-        avgPrice = null,
         priceChange = null,
         timestamp = Timestamp(0)
     )

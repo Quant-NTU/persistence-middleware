@@ -15,6 +15,9 @@ class TransformedStock(
     var symbol: String,
 
     @Column(nullable = false)
+    var interval: String,
+
+    @Column(nullable = false)
     var open: Double,
 
     @Column(nullable = false)
@@ -29,9 +32,6 @@ class TransformedStock(
     @Column(nullable = false)
     var volume: Long,
 
-    @Column(name = "avg_price")
-    var avgPrice: Double? = null,
-
     @Column(name = "price_change")
     var priceChange: Double? = null,
 
@@ -41,12 +41,12 @@ class TransformedStock(
     constructor() : this(
         id = 0,
         symbol = "",
+        interval = "1day",
         open = 0.0,
         high = 0.0,
         low = 0.0,
         close = 0.0,
         volume = 0L,
-        avgPrice = null,
         priceChange = null,
         timestamp = Timestamp(0)
     )
