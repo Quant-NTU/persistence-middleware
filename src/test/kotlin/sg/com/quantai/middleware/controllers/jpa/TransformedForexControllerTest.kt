@@ -20,11 +20,11 @@ class TransformedForexControllerTest {
             TransformedForex(
                 id = 1,
                 currencyPair = "EUR/USD",
+                interval = "1day",
                 open = 1.0850,
                 high = 1.0890,
                 low = 1.0820,
                 close = 1.0875,
-                avgPrice = 1.0855,
                 priceChange = 0.29,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -52,11 +52,11 @@ class TransformedForexControllerTest {
             TransformedForex(
                 id = 1,
                 currencyPair = "EUR/USD",
+                interval = "1day",
                 open = 1.0850,
                 high = 1.0890,
                 low = 1.0820,
                 close = 1.0875,
-                avgPrice = 1.0855,
                 priceChange = 0.29,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -84,11 +84,11 @@ class TransformedForexControllerTest {
             TransformedForex(
                 id = 1,
                 currencyPair = "EUR/USD",
+                interval = "1day",
                 open = 1.0850,
                 high = 1.0890,
                 low = 1.0820,
                 close = 1.0875,
-                avgPrice = 1.0855,
                 priceChange = 0.29,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -108,11 +108,11 @@ class TransformedForexControllerTest {
             TransformedForex(
                 id = 1,
                 currencyPair = "EUR/USD",
+                interval = "1day",
                 open = 1.0850,
                 high = 1.0890,
                 low = 1.0820,
                 close = 1.0875,
-                avgPrice = 1.0855,
                 priceChange = 0.29,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -131,11 +131,11 @@ class TransformedForexControllerTest {
             TransformedForex(
                 id = 1,
                 currencyPair = "EUR/USD",
+                interval = "1day",
                 open = 1.0850,
                 high = 1.0890,
                 low = 1.0820,
                 close = 1.0875,
-                avgPrice = 1.0855,
                 priceChange = 0.29,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )

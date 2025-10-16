@@ -20,12 +20,12 @@ class TransformedStockControllerTest {
             TransformedStock(
                 id = 1,
                 symbol = "AAPL",
+                interval = "1day",
                 open = 150.0,
                 high = 155.0,
                 low = 148.0,
                 close = 152.0,
                 volume = 1000000L,
-                avgPrice = 151.25,
                 priceChange = 1.33,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -53,12 +53,12 @@ class TransformedStockControllerTest {
             TransformedStock(
                 id = 1,
                 symbol = "AAPL",
+                interval = "1day",
                 open = 150.0,
                 high = 155.0,
                 low = 148.0,
                 close = 152.0,
                 volume = 1000000L,
-                avgPrice = 151.25,
                 priceChange = 1.33,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -86,12 +86,12 @@ class TransformedStockControllerTest {
             TransformedStock(
                 id = 1,
                 symbol = "AAPL",
+                interval = "1day",
                 open = 150.0,
                 high = 155.0,
                 low = 148.0,
                 close = 152.0,
                 volume = 1000000L,
-                avgPrice = 151.25,
                 priceChange = 1.33,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -111,12 +111,12 @@ class TransformedStockControllerTest {
             TransformedStock(
                 id = 1,
                 symbol = "AAPL",
+                interval = "1day",
                 open = 150.0,
                 high = 155.0,
                 low = 148.0,
                 close = 152.0,
                 volume = 1000000L,
-                avgPrice = 151.25,
                 priceChange = 1.33,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
@@ -135,12 +135,12 @@ class TransformedStockControllerTest {
             TransformedStock(
                 id = 1,
                 symbol = "AAPL",
+                interval = "1day",
                 open = 150.0,
                 high = 155.0,
                 low = 148.0,
                 close = 152.0,
                 volume = 1000000L,
-                avgPrice = 151.25,
                 priceChange = 1.33,
                 timestamp = Timestamp.valueOf("2024-01-15 00:00:00")
             )
