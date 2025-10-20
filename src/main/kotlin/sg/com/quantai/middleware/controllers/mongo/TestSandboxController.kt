@@ -13,6 +13,7 @@ import java.nio.file.Paths
 import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.client.WebClient
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.web.bind.annotation.RequestParam
 
 import sg.com.quantai.middleware.data.mongo.Portfolio
 import sg.com.quantai.middleware.data.mongo.PortfolioHistory
@@ -84,13 +85,22 @@ class TestSandboxController(
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
         @PathVariable("user_id") userId: String,
-        @PathVariable("strategy_id") strategyId: String
+        @PathVariable("strategy_id") strategyId: String,
+        @RequestParam(required = false) portfolioUid: String? = null
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
-        if (strategy == null) {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
+        if (strategy == null) return ResponseEntity(HttpStatus.NOT_FOUND)
+        
+        // Retrieve portfolio
+        val portfolio = if (!portfolioUid.isNullOrEmpty()) {
+            portfolioRepository.findOneByUidAndOwner(portfolioUid, user)
+        } else {
+            portfolioRepository.findByOwnerAndMain(user, true)
         }
+
+        if (portfolio == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Portfolio not found")
+
 
         // Retrieve content of strategy script
         val strategyName = strategy.title
@@ -110,12 +120,15 @@ class TestSandboxController(
                             .block()
         val strategyCode = s3Response!!.body
 
+<<<<<<< HEAD
         val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
         
         if (portfolio == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
         }
 
+=======
+>>>>>>> 71681b8 (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
 
         // sum orders to construct portfolio
