@@ -13,6 +13,7 @@ import java.nio.file.Paths
 import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.client.WebClient
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.web.bind.annotation.RequestParam
 
 import sg.com.quantai.middleware.data.mongo.Portfolio
 import sg.com.quantai.middleware.data.mongo.PortfolioHistory
@@ -80,13 +81,22 @@ class TestSandboxController(
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
         @PathVariable("user_id") userId: String,
-        @PathVariable("strategy_id") strategyId: String
+        @PathVariable("strategy_id") strategyId: String,
+        @RequestParam(required = false) portfolioUid: String? = null
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
-        if (strategy == null) {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
+        if (strategy == null) return ResponseEntity(HttpStatus.NOT_FOUND)
+        
+        // Retrieve portfolio
+        val portfolio = if (!portfolioUid.isNullOrEmpty()) {
+            portfolioRepository.findOneByUidAndOwner(portfolioUid, user)
+        } else {
+            portfolioRepository.findByOwnerAndMain(user, true)
         }
+
+        if (portfolio == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Portfolio not found")
+
 
         // Retrieve content of strategy script
         val strategyName = strategy.title
@@ -106,29 +116,6 @@ class TestSandboxController(
                             .block()
         val strategyCode = s3Response!!.body
 
-        // Retrieve portfolio
-        // TODO: Hardcoded portfolioId=1
-        // val portfolio = mapOf(
-        //     "uid" to "1",
-        //     "assets" to listOf(
-        //         mapOf(
-        //             "symbol" to "BTC",
-        //             "quantity" to 1.0,
-        //             "purchasePrice" to 96000
-        //         ),
-        //         mapOf(
-        //             "symbol" to "ETH",
-        //             "quantity" to 1.0,
-        //             "purchasePrice" to 4000
-        //         )
-        //     )
-        // )
-        val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
-        
-        if (portfolio == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
-        }
-
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
 
         // sum orders to construct portfolio
@@ -139,27 +126,6 @@ class TestSandboxController(
             "uid" to portfolio.uid,
             "assets" to aggregatedAssets
         )   
-        // val aggregatedAssets = portfolioHistory
-        //     .groupBy { history: PortfolioHistory -> history.asset.name ?: "UNKNOWN" } 
-        //     .map { (symbol, entries: List<PortfolioHistory>) ->
-        //         val totalQuantity: BigDecimal = entries.sumOf { it.quantity }
-        //         val purchasePrice: BigDecimal = entries.first().asset.purchasePrice
-
-        //         mapOf(
-        //             "symbol" to symbol,
-        //             "quantity" to totalQuantity,
-        //             "purchasePrice" to purchasePrice
-        //         )
-        //     }
-
-
-        //     val portfolioJson = mapOf(
-        //         "uid" to portfolio.uid,
-        //         "assets" to aggregatedAssets
-        //     )
-
-
-
 
         // Call Python Sandbox API to execute the strategy
         try {
