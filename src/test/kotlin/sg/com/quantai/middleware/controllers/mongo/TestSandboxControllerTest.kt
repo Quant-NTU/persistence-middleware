@@ -364,8 +364,7 @@ import java.time.LocalDate
             assertEquals("success", result)
         }
     }
-<<<<<<< HEAD
-=======
+
 
     @Test
     fun `preloadCryptoData should call correct endpoints and log success`() {
@@ -452,5 +451,4 @@ import java.time.LocalDate
     }
 
 
-}
->>>>>>> 238862e (Quantntu 48 (#37))
+
