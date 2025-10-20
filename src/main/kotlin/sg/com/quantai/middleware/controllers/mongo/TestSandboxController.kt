@@ -250,6 +250,7 @@ class TestSandboxController(
     fun runStrategy(
         @PathVariable("user_id") userId: String,
         @PathVariable("strategy_id") strategyId: String,
+<<<<<<< HEAD
         @RequestParam(required = false) portfolioUid: String? = null,
         @RequestParam(required = false) startDate: String? = null,
         @RequestParam(required = false) endDate: String? = null,
@@ -258,17 +259,25 @@ class TestSandboxController(
         @RequestParam(required = false) marginEnabled: Boolean? = null,
         @RequestParam(required = false) initialMarginRate: Double? = null,
         @RequestParam(required = false) maintenanceMarginRate: Double? = null,
+=======
+        @RequestParam(required = false) portfolioUid: String? = null
+>>>>>>> 267763d (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
         if (strategy == null) return ResponseEntity(HttpStatus.NOT_FOUND)
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 267763d (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
         // Retrieve portfolio
         val portfolio = if (!portfolioUid.isNullOrEmpty()) {
             portfolioRepository.findOneByUidAndOwner(portfolioUid, user)
         } else {
             portfolioRepository.findByOwnerAndMain(user, true)
         }
+<<<<<<< HEAD
         if (portfolio == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Portfolio not found")
 
         preloadCryptoData(
@@ -298,6 +307,13 @@ class TestSandboxController(
             log = log
         )
 
+=======
+
+        if (portfolio == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Portfolio not found")
+
+
+        // Retrieve content of strategy script
+>>>>>>> 267763d (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
         val strategyName = strategy.title
         val filePath = strategy.path
         val s3Response = s3WebClient()
@@ -314,6 +330,18 @@ class TestSandboxController(
             .block()
         val strategyCode = s3Response!!.body
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
+        
+        if (portfolio == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
+        }
+
+=======
+>>>>>>> 71681b8 (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
+>>>>>>> 267763d (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
         val aggregatedAssets = aggregatePortfolioHistory(portfolioHistory)
 
