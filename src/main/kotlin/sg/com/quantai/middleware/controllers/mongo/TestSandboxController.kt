@@ -246,7 +246,7 @@ class TestSandboxController(
             .block()
     }
 
-    @PostMapping("/user/{user_id}/{strategy_id}/run")
+@PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
         @PathVariable("user_id") userId: String,
         @PathVariable("strategy_id") strategyId: String,
