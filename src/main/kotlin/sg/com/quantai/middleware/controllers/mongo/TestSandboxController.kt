@@ -22,6 +22,7 @@ import sg.com.quantai.middleware.repositories.mongo.PortfolioHistoryRepository
 import sg.com.quantai.middleware.data.mongo.Asset
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @RestController
 @RequestMapping("/test-sandbox")
@@ -48,8 +49,8 @@ class TestSandboxController(
         return WebClient.builder().baseUrl(sandboxUrl).build()
     }
 
-    fun aggregatePortfolioHistory(portfolioHistory: List<PortfolioHistory>): List<Map<String, Any>> {
-        return portfolioHistory
+    fun aggregatePortfolioHistory(portfolioHistoryList: List<PortfolioHistory>): List<Map<String, Any>> {
+        return portfolioHistoryList
             .groupBy { history -> history.asset.name ?: "UNKNOWN" }
             .map { (symbol, entries) ->
                 val totalQuantity: BigDecimal = entries.sumOf { entry ->
@@ -66,19 +67,22 @@ class TestSandboxController(
                         else -> entry.value
                     }
                 }
-
-                val purchasePrice: BigDecimal = entries.first().asset.purchasePrice
-
+                // if no quantity, puchase price set to 0
+                val purchasePrice: BigDecimal =
+                    if (totalQuantity.signum() == 0) BigDecimal.ZERO
+                    else totalValue.divide(totalQuantity, 8, RoundingMode.HALF_UP)
+                
                 mapOf(
                     "symbol" to symbol,
                     "quantity" to totalQuantity,
+                    "value" to totalValue,
                     "purchasePrice" to purchasePrice
                 )
             }
     }
 
 
-    @PostMapping("/user/{user_id}/{strategy_id}/run")
+@PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
         @PathVariable("user_id") userId: String,
         @PathVariable("strategy_id") strategyId: String,
