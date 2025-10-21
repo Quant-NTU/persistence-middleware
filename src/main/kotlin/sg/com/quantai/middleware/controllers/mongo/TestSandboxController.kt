@@ -312,19 +312,15 @@ class TestSandboxController(
             .toEntity(String::class.java)
             .block()
         val strategyCode = s3Response!!.body
+        
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
         val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
         
         if (portfolio == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
         }
 
-=======
->>>>>>> 71681b8 (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
->>>>>>> 267763d (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
+
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
         val aggregatedAssets = aggregatePortfolioHistory(portfolioHistory)
 
