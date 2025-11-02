@@ -92,6 +92,7 @@ class PortfolioController(
             Portfolio(
                 description = request.description,
                 name = request.name,
+                cashBalance = request.cashBalance,
                 owner = user,
             )
         )
@@ -114,6 +115,7 @@ class PortfolioController(
                 main = portfolio.main,
                 description = request.description,
                 name = request.name,
+                cashBalance = request.cashBalance,
                 createdDate = portfolio.createdDate,
                 updatedDate = LocalDateTime.now(),
                 owner = user
@@ -455,5 +457,83 @@ class PortfolioController(
         val portfolio_name = portfolio.name
         portfolioRepository.deleteByUid(portfolio_id)
         return ResponseEntity.ok().body("Deleted portfolio ${portfolio_name}")
+    }
+
+    data class BuyAssetRequest(
+        val assetType: String,
+        val symbol: String,
+        val name: String,
+        val quantity: BigDecimal,
+        val pricePerUnit: BigDecimal,
+        val transactionDate: String
+    )
+
+    @PostMapping("/buy/{user_id}/{portfolio_id}")
+    fun buyAsset(
+        @PathVariable("user_id") userId: String,
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: BuyAssetRequest
+    ): ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(userId)
+        val portfolio = portfolioRepository.findOneByUid(portfolioId)
+
+        val asset: Asset = when (request.assetType.lowercase()) {
+            "stock" -> {
+                if (!stockRepository.existsByName(request.name)) {
+                    stockRepository.save(
+                        Stock(
+                            name = request.name,
+                            quantity = request.quantity,
+                            purchasePrice = request.pricePerUnit,
+                            ticker = request.symbol
+                        )
+                    )
+                }
+                stockRepository.findByName(request.name)
+            }
+            "crypto" -> {
+                if (!cryptoRepository.existsByName(request.name)) {
+                    cryptoRepository.save(
+                        Crypto(
+                            name = request.name,
+                            quantity = request.quantity,
+                            purchasePrice = request.pricePerUnit,
+                            symbol = request.symbol
+                        )
+                    )
+                }
+                cryptoRepository.findByName(request.name)
+            }
+            "forex" -> {
+                if (!forexRepository.existsByName(request.name)) {
+                    forexRepository.save(
+                        Forex(
+                            name = request.name,
+                            quantity = request.quantity,
+                            purchasePrice = request.pricePerUnit,
+                            currencyPair = request.symbol
+                        )
+                    )
+                }
+                forexRepository.findByName(request.name)
+            }
+            else -> return ResponseEntity.badRequest().body("Invalid asset type: ${request.assetType}")
+        }
+
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = asset,
+                action = PortfolioActionEnum.BUY_REAL_ASSET,
+                quantity = request.quantity,
+                value = request.quantity * request.pricePerUnit,
+                portfolio = portfolio,
+            )
+        )
+
+        return ResponseEntity.ok().body(mapOf(
+            "success" to true,
+            "portfolio" to portfolio,
+            "message" to "Successfully bought ${request.quantity} of ${request.name}"
+        ))
     }
 }
