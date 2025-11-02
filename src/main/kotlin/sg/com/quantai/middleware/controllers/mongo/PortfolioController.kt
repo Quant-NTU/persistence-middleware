@@ -536,4 +536,51 @@ class PortfolioController(
             "message" to "Successfully bought ${request.quantity} of ${request.name}"
         ))
     }
+
+    data class SellAssetRequest(
+        val assetType: String,
+        val name: String,
+        val quantity: BigDecimal,
+        val pricePerUnit: BigDecimal
+    )
+
+    @PostMapping("/sell/{user_id}/{portfolio_id}")
+    fun sellAsset(
+        @PathVariable("user_id") userId: String,
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: SellAssetRequest
+    ): ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(userId)
+        val portfolio = portfolioRepository.findOneByUid(portfolioId)
+
+        // Find the asset - it must exist
+        val asset: Asset = try {
+            when (request.assetType.lowercase()) {
+                "stock" -> stockRepository.findByName(request.name)
+                "crypto" -> cryptoRepository.findByName(request.name)
+                "forex" -> forexRepository.findByName(request.name)
+                else -> return ResponseEntity.badRequest().body("Invalid asset type: ${request.assetType}")
+            }
+        } catch (e: Exception) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("Asset '${request.name}' not found. You can only sell assets you own.")
+        }
+
+        // Create a SELL history entry
+        portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = asset,
+                action = PortfolioActionEnum.SELL_REAL_ASSET,
+                quantity = request.quantity,
+                value = request.quantity * request.pricePerUnit,
+                portfolio = portfolio,
+            )
+        )
+
+        return ResponseEntity.ok().body(mapOf(
+            "success" to true,
+            "portfolio" to portfolio,
+            "message" to "Successfully sold ${request.quantity} of ${request.name}"
+        ))
+    }
 }
