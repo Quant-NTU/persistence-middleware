@@ -520,19 +520,31 @@ class PortfolioController(
             else -> return ResponseEntity.badRequest().body("Invalid asset type: ${request.assetType}")
         }
 
+        // Calculate total cost
+        val totalCost = request.quantity * request.pricePerUnit
+
+        // Create buy history entry
         portfolioHistoryRepository.save(
             PortfolioHistory(
                 asset = asset,
                 action = PortfolioActionEnum.BUY_REAL_ASSET,
                 quantity = request.quantity,
-                value = request.quantity * request.pricePerUnit,
+                value = totalCost,
                 portfolio = portfolio,
+            )
+        )
+
+        // Update portfolio cash balance (deduct cost)
+        val updatedPortfolio = portfolioRepository.save(
+            portfolio.copy(
+                cashBalance = portfolio.cashBalance - totalCost,
+                updatedDate = LocalDateTime.now()
             )
         )
 
         return ResponseEntity.ok().body(mapOf(
             "success" to true,
-            "portfolio" to portfolio,
+            "portfolio" to updatedPortfolio,
             "message" to "Successfully bought ${request.quantity} of ${request.name}"
         ))
     }
@@ -566,20 +578,31 @@ class PortfolioController(
                 .body("Asset '${request.name}' not found. You can only sell assets you own.")
         }
 
-        // Create a SELL history entry
+        // Calculate total proceeds
+        val totalProceeds = request.quantity * request.pricePerUnit
+
+        // Create a SELL history entry with NEGATIVE quantity (so aggregation logic works correctly)
         portfolioHistoryRepository.save(
             PortfolioHistory(
                 asset = asset,
                 action = PortfolioActionEnum.SELL_REAL_ASSET,
-                quantity = request.quantity,
-                value = request.quantity * request.pricePerUnit,
+                quantity = -request.quantity,  // Negative for sells
+                value = totalProceeds,
                 portfolio = portfolio,
+            )
+        )
+
+        // Update portfolio cash balance (add proceeds)
+        val updatedPortfolio = portfolioRepository.save(
+            portfolio.copy(
+                cashBalance = portfolio.cashBalance + totalProceeds,
+                updatedDate = LocalDateTime.now()
             )
         )
 
         return ResponseEntity.ok().body(mapOf(
             "success" to true,
-            "portfolio" to portfolio,
+            "portfolio" to updatedPortfolio,
             "message" to "Successfully sold ${request.quantity} of ${request.name}"
         ))
     }
