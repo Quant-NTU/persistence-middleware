@@ -81,43 +81,91 @@ class TestSandboxController(
             }
     }
 
+    fun preloadCryptoData(
+        webClient: WebClient = WebClient.create(),  // Can be mocked in tests
+        cryptoBaseUrl: String = "http://quant-ai-persistence-etl:10070/crypto",
+        cryptoSymbols: List<String> = listOf("BTC", "ETH"),
+        startDate: String? = null,
+        endDate: String? = null,
+        log: org.slf4j.Logger
+    ) {
+        try {
+            cryptoSymbols.forEach { symbol ->
+                val uri = StringBuilder("$cryptoBaseUrl/historical/store-by-date?symbol=$symbol&currency=USD")
+                if (startDate != null) uri.append("&startDate=$startDate")
+                if (endDate != null) uri.append("&endDate=$endDate")
+
+                val response = webClient.post()
+                    .uri(uri.toString())
+                    .retrieve()
+                    .bodyToMono(String::class.java)
+                    .doOnError { e -> log.error("Error preloading $symbol: ${e.message}") }
+                    .block()
+
+                log.info("Preloaded data for $symbol: $response")
+            }
+
+            val transformResponse = webClient.post()
+                .uri("$cryptoBaseUrl/transform")
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .block()
+
+            log.info("Transform completed: $transformResponse")
+            log.info("✅ Successfully preloaded crypto data for symbols: $cryptoSymbols")
+
+        } catch (e: Exception) {
+            log.warn("⚠️ Failed to preload crypto data before strategy run: ${e.message}")
+        }
+    }
+
+
+
+
 
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
         @PathVariable("user_id") userId: String,
         @PathVariable("strategy_id") strategyId: String,
-        @RequestParam(required = false) portfolioUid: String? = null
+        @RequestParam(required = false) portfolioUid: String? = null,
+        @RequestParam(required = false) startDate: String? = null,
+        @RequestParam(required = false) endDate: String? = null
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
         if (strategy == null) return ResponseEntity(HttpStatus.NOT_FOUND)
-        
+
         // Retrieve portfolio
         val portfolio = if (!portfolioUid.isNullOrEmpty()) {
             portfolioRepository.findOneByUidAndOwner(portfolioUid, user)
         } else {
             portfolioRepository.findByOwnerAndMain(user, true)
         }
-
         if (portfolio == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Portfolio not found")
 
+        preloadCryptoData(
+            webClient = WebClient.create(),
+            cryptoBaseUrl = "http://quant-ai-persistence-etl:10070/crypto",
+            cryptoSymbols = listOf("BTC", "ETH"),  // currently static
+            startDate = startDate,
+            endDate = endDate,
+            log = log
+        )
 
-        // Retrieve content of strategy script
         val strategyName = strategy.title
         val filePath = strategy.path
         val s3Response = s3WebClient()
-                            .get()
-                            .uri { builder ->
-                                builder
-                                    .path("/")
-                                    .queryParam("path", filePath)
-                                    .queryParam("userId", userId)
-                                    .queryParam("strategyName", strategyName)
-                                    .build()
-                            }
-                            .retrieve()
-                            .toEntity(String::class.java)
-                            .block()
+            .get()
+            .uri {
+                it.path("/")
+                    .queryParam("path", filePath)
+                    .queryParam("userId", userId)
+                    .queryParam("strategyName", strategyName)
+                    .build()
+            }
+            .retrieve()
+            .toEntity(String::class.java)
+            .block()
         val strategyCode = s3Response!!.body
 
         val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
@@ -127,31 +175,26 @@ class TestSandboxController(
         }
 
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
-
-        // sum orders to construct portfolio
         val aggregatedAssets = aggregatePortfolioHistory(portfolioHistory)
-
 
         val portfolioJson = mapOf(
             "uid" to portfolio.uid,
             "assets" to aggregatedAssets
-        )   
+        )
 
-        // Call Python Sandbox API to execute the strategy
         try {
             val sandboxResponse = sandboxWebClient()
                 .post()
-                .uri("/strategies/user/${userId}/${strategyId}/execute")
+                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate") //?startDate=$startDate&endDate=$endDate
                 .bodyValue(mapOf(
-                    "portfolio" to portfolioJson, //portfolioJson
+                    "portfolio" to portfolioJson,
                     "strategyCode" to strategyCode
                 ))
                 .exchangeToMono { response ->
-                    // Handle Python's error response
                     if (!response.statusCode().is2xxSuccessful) {
                         response.bodyToMono(String::class.java)
                             .map { err ->
-                                log.info("Detailed Sandbox error: ${err}")
+                                log.info("Detailed Sandbox error: $err")
                                 val errMsg = objectMapper.readTree(err).path("detail")
                                 throw Exception(errMsg.asText())
                             }
@@ -161,7 +204,6 @@ class TestSandboxController(
                 }
                 .block()
 
-            // TODO: Process 'sandboxResponse'
             return ResponseEntity.ok(sandboxResponse)
         } catch (e: Exception) {
             return ResponseEntity.status(500).body("Error: ${e.message}")
