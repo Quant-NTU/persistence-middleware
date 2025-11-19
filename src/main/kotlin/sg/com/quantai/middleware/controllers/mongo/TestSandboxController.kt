@@ -129,7 +129,8 @@ class TestSandboxController(
         @PathVariable("strategy_id") strategyId: String,
         @RequestParam(required = false) portfolioUid: String? = null,
         @RequestParam(required = false) startDate: String? = null,
-        @RequestParam(required = false) endDate: String? = null
+        @RequestParam(required = false) endDate: String? = null,
+        @RequestParam(required = false) startingCash: Double? = null
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
@@ -188,7 +189,7 @@ class TestSandboxController(
         try {
             val sandboxResponse = sandboxWebClient()
                 .post()
-                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate") //?startDate=$startDate&endDate=$endDate
+                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate&startingCash=$startingCash")
                 .bodyValue(mapOf(
                     "portfolio" to portfolioJson,
                     "strategyCode" to strategyCode
