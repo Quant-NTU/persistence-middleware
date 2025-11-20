@@ -47,6 +47,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
@@ -69,6 +71,7 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("com.h2database:h2:2.2.224")
 
 }
 
