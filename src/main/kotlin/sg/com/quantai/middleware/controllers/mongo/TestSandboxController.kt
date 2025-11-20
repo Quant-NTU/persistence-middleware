@@ -13,7 +13,6 @@ import java.nio.file.Paths
 import org.slf4j.LoggerFactory
 import org.springframework.web.reactive.function.client.WebClient
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.springframework.web.bind.annotation.RequestParam
 
 import sg.com.quantai.middleware.data.mongo.Portfolio
 import sg.com.quantai.middleware.data.mongo.PortfolioHistory
@@ -85,22 +84,13 @@ class TestSandboxController(
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
         @PathVariable("user_id") userId: String,
-        @PathVariable("strategy_id") strategyId: String,
-        @RequestParam(required = false) portfolioUid: String? = null
+        @PathVariable("strategy_id") strategyId: String
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
-        if (strategy == null) return ResponseEntity(HttpStatus.NOT_FOUND)
-        
-        // Retrieve portfolio
-        val portfolio = if (!portfolioUid.isNullOrEmpty()) {
-            portfolioRepository.findOneByUidAndOwner(portfolioUid, user)
-        } else {
-            portfolioRepository.findByOwnerAndMain(user, true)
+        if (strategy == null) {
+            return ResponseEntity(HttpStatus.NOT_FOUND)
         }
-
-        if (portfolio == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Portfolio not found")
-
 
         // Retrieve content of strategy script
         val strategyName = strategy.title
@@ -119,6 +109,12 @@ class TestSandboxController(
                             .toEntity(String::class.java)
                             .block()
         val strategyCode = s3Response!!.body
+
+        val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
+        
+        if (portfolio == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
+        }
 
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
 

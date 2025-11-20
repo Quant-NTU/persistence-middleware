@@ -1,5 +1,6 @@
 package sg.com.quantai.middleware.data.mongo
 
+import java.math.BigDecimal
 import java.time.LocalDateTime
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.Id
@@ -16,6 +17,7 @@ data class Portfolio(
     val main: Boolean = false,
     val description: String,
     val name: String,
+    val cashBalance: BigDecimal = BigDecimal.ZERO,
     // Timestamps columns
     val createdDate: LocalDateTime = LocalDateTime.now(),
     val updatedDate: LocalDateTime = LocalDateTime.now(),
