@@ -130,7 +130,8 @@ class TestSandboxController(
         @RequestParam(required = false) portfolioUid: String? = null,
         @RequestParam(required = false) startDate: String? = null,
         @RequestParam(required = false) endDate: String? = null,
-        @RequestParam(required = false) startingCash: Double? = null
+        @RequestParam(required = false) startingCash: Double? = null,
+        @RequestParam(required = false) transactionFeePercent: Double? = null,
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
@@ -169,15 +170,6 @@ class TestSandboxController(
             .block()
         val strategyCode = s3Response!!.body
 
-<<<<<<< HEAD
-        val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
-        
-        if (portfolio == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
-        }
-
-=======
->>>>>>> 71681b8 (changed runStrategy to be able to accept portfolioUid and use it to select the portfolio)
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
         val aggregatedAssets = aggregatePortfolioHistory(portfolioHistory)
 
@@ -189,7 +181,7 @@ class TestSandboxController(
         try {
             val sandboxResponse = sandboxWebClient()
                 .post()
-                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate&startingCash=$startingCash")
+                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate&startingCash=$startingCash&transaction_fee_percent=$transactionFeePercent")
                 .bodyValue(mapOf(
                     "portfolio" to portfolioJson,
                     "strategyCode" to strategyCode
