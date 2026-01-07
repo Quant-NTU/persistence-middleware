@@ -82,7 +82,7 @@ class TestSandboxController(
     }
 
     fun preloadCryptoData(
-        webClient: WebClient = WebClient.create(),  // Can be mocked in tests
+        webClient: WebClient = WebClient.create(),
         cryptoBaseUrl: String = "http://quant-ai-persistence-etl:10070/crypto",
         cryptoSymbols: List<String> = listOf("BTC", "ETH"),
         startDate: String? = null,
@@ -119,7 +119,43 @@ class TestSandboxController(
         }
     }
 
+    fun preloadStockData(
+        webClient: WebClient = WebClient.create(),
+        stockBaseUrl: String = "http://quant-ai-persistence-etl:10070/stock",
+        stockSymbols: List<String> = listOf("AAPL", "MSFT"),
+        startDate: String? = null,
+        endDate: String? = null,
+        log: org.slf4j.Logger
+    ) {
+        try {
+            stockSymbols.forEach { symbol ->
+                val uri = StringBuilder("$stockBaseUrl/historical/store-by-date?symbol=$symbol")
+                if (startDate != null) uri.append("&startDate=$startDate")
+                if (endDate != null) uri.append("&endDate=$endDate")
 
+                val response = webClient.post()
+                    .uri(uri.toString())
+                    .retrieve()
+                    .bodyToMono(String::class.java)
+                    .doOnError { e -> log.error("Error preloading $symbol: ${e.message}") }
+                    .block()
+
+                log.info("Preloaded data for $symbol: $response")
+            }
+
+            val transformResponse = webClient.post()
+                .uri("$stockBaseUrl/transform")
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .block()
+
+            log.info("Transform completed: $transformResponse")
+            log.info("✅ Successfully preloaded stock data for symbols: $stockSymbols")
+
+        } catch (e: Exception) {
+            log.warn("⚠️ Failed to preload stock data before strategy run: ${e.message}")
+        }
+    }
 
 
 
@@ -149,6 +185,15 @@ class TestSandboxController(
             webClient = WebClient.create(),
             cryptoBaseUrl = "http://quant-ai-persistence-etl:10070/crypto",
             cryptoSymbols = listOf("BTC", "ETH"),  // currently static
+            startDate = startDate,
+            endDate = endDate,
+            log = log
+        )
+
+        preloadStockData(
+            webClient = WebClient.create(),
+            stockBaseUrl = "http://quant-ai-persistence-etl:10070/stock",
+            stockSymbols = listOf("AAPL", "MSFT"), // currently static
             startDate = startDate,
             endDate = endDate,
             log = log
