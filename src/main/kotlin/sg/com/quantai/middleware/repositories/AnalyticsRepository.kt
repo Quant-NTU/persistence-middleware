@@ -26,6 +26,13 @@ class AnalyticsRepository(private val jdbcTemplate: JdbcTemplate) {
             "weekly", "7d" -> "ohlc_7day_aggregate"
             else -> "ohlc_1day_aggregate"
         }
+        
+        val intervalUnit = when (period.lowercase()) {
+            "hourly", "1h" -> "hour"
+            "daily", "1d" -> "day"
+            "weekly", "7d" -> "week"
+            else -> "day"
+        }
 
         val whereClauses = mutableListOf<String>()
         val params = mutableListOf<Any>()
@@ -51,7 +58,7 @@ class AnalyticsRepository(private val jdbcTemplate: JdbcTemplate) {
                 dat.asset_type_code as asset_type,
                 '$period' as time_period,
                 agg.bucket as start_time,
-                agg.bucket + INTERVAL '1 $period' as end_time,
+                agg.bucket + INTERVAL '1 $intervalUnit' as end_time,
                 agg.total_volume,
                 agg.avg_volume,
                 agg.max_volume,
@@ -90,6 +97,13 @@ class AnalyticsRepository(private val jdbcTemplate: JdbcTemplate) {
             "weekly", "7d" -> "ohlc_7day_aggregate"
             else -> "ohlc_1day_aggregate"
         }
+        
+        val intervalUnit = when (period.lowercase()) {
+            "hourly", "1h" -> "hour"
+            "daily", "1d" -> "day"
+            "weekly", "7d" -> "week"
+            else -> "day"
+        }
 
         val placeholders = symbols.joinToString(",") { "?" }
         val params = mutableListOf<Any>()
@@ -105,7 +119,7 @@ class AnalyticsRepository(private val jdbcTemplate: JdbcTemplate) {
                 dat.asset_type_code as asset_type,
                 '$period' as time_period,
                 agg.bucket as start_time,
-                agg.bucket + INTERVAL '1 $period' as end_time,
+                agg.bucket + INTERVAL '1 $intervalUnit' as end_time,
                 agg.first_open as open_price,
                 agg.last_close as close_price,
                 agg.max_high as high_price,
@@ -147,6 +161,13 @@ class AnalyticsRepository(private val jdbcTemplate: JdbcTemplate) {
             "weekly", "7d" -> "ohlc_7day_aggregate"
             else -> "ohlc_1day_aggregate"
         }
+        
+        val intervalUnit = when (period.lowercase()) {
+            "hourly", "1h" -> "hour"
+            "daily", "1d" -> "day"
+            "weekly", "7d" -> "week"
+            else -> "day"
+        }
 
         val whereClause = if (!assetType.isNullOrEmpty()) {
             "WHERE dat.asset_type_code = ?"
@@ -165,7 +186,7 @@ class AnalyticsRepository(private val jdbcTemplate: JdbcTemplate) {
                 dat.asset_type_code as asset_type,
                 '$period' as time_period,
                 agg.bucket as start_time,
-                agg.bucket + INTERVAL '1 $period' as end_time,
+                agg.bucket + INTERVAL '1 $intervalUnit' as end_time,
                 agg.volatility,
                 AVG(agg.volatility) OVER (PARTITION BY ds.symbol_code ORDER BY agg.bucket 
                     ROWS BETWEEN 5 PRECEDING AND CURRENT ROW) as avg_volatility,
