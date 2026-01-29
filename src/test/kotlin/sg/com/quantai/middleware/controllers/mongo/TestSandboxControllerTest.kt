@@ -232,5 +232,58 @@ class TestSandboxControllerUnitTest {
         verify(mockLogger).info("✅ Successfully preloaded stock data for symbols: [AAPL, MSFT]")
     }
 
+    @Test
+    fun `preloadForexData should call correct endpoints and log success`() {
+        // Mock Logger
+        val mockLogger = mock(Logger::class.java)
+
+        // Mock WebClient chain
+        val mockWebClient = mock(WebClient::class.java)
+        val mockRequestBodyUriSpec = mock(WebClient.RequestBodyUriSpec::class.java)
+        val mockRequestBodySpec = mock(WebClient.RequestBodySpec::class.java)
+        val mockResponseSpec = mock(WebClient.ResponseSpec::class.java)
+
+        // Stub the chain for every post call
+        `when`(mockWebClient.post()).thenReturn(mockRequestBodyUriSpec)
+        `when`(mockRequestBodyUriSpec.uri(anyString())).thenReturn(mockRequestBodySpec)
+        `when`(mockRequestBodySpec.retrieve()).thenReturn(mockResponseSpec)
+        `when`(mockResponseSpec.bodyToMono(String::class.java)).thenReturn(Mono.just("success"))
+
+        // Define forex pairs and dates
+        val forexPairs = listOf("USD/GBP", "GBP/USD")
+        val startDate = "2025-01-01"
+        val endDate = "2025-01-10"
+        val interval = "1day"
+        val forexBaseUrl = "http://quant-ai-persistence-etl:10070/forex"
+
+        // Call the function with mocks and parameters
+        controller.preloadForexData(
+            webClient = mockWebClient,
+            forexBaseUrl = forexBaseUrl,
+            forexPairs = forexPairs,
+            startDate = startDate,
+            endDate = endDate,
+            interval = interval,
+            log = mockLogger
+        )
+
+        // Verify .post() called three times (2 forex pairs + 1 transform)
+        verify(mockWebClient, times(3)).post()
+
+        // Verify .uri() called with expected full URLs for each forex pair
+        verify(mockRequestBodyUriSpec).uri(
+            "$forexBaseUrl/historical/store-by-date?currencyPair=USD/GBP&interval=$interval&startDate=$startDate&endDate=$endDate"
+        )
+        verify(mockRequestBodyUriSpec).uri(
+            "$forexBaseUrl/historical/store-by-date?currencyPair=GBP/USD&interval=$interval&startDate=$startDate&endDate=$endDate"
+        )
+        verify(mockRequestBodyUriSpec).uri(
+            "$forexBaseUrl/transform"
+        )
+
+        // Verify final success log
+        verify(mockLogger).info("✅ Successfully preloaded forex data for pairs: $forexPairs")
+    }
+
 
 }

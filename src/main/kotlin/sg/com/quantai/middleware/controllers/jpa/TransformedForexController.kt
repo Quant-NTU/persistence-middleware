@@ -23,6 +23,7 @@ class TransformedForexController(private val service: TransformedForexService) {
         @PathVariable currencyPair: String,
         @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedForex>> {
+        val currencyPair = currencyPair.replace('|', '/')
         val data = service.getTransformedDataByCurrencyPair(currencyPair, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
