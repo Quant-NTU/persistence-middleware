@@ -157,6 +157,51 @@ class TestSandboxController(
         }
     }
 
+    fun preloadForexData(
+        webClient: WebClient = WebClient.create(),
+        forexBaseUrl: String = "http://quant-ai-persistence-etl:10070/forex",
+        forexPairs: List<String> = listOf("USD/GBP", "GBP/USD"),
+        startDate: String? = null,
+        endDate: String? = null,
+        interval: String = "1day",
+        log: org.slf4j.Logger
+    ) {
+        try {
+            forexPairs.forEach { pair ->
+                val uri = StringBuilder(
+                    "$forexBaseUrl/historical/store-by-date" +
+                    "?currencyPair=$pair" +
+                    "&interval=$interval"
+                )
+
+                if (startDate != null) uri.append("&startDate=$startDate")
+                if (endDate != null) uri.append("&endDate=$endDate")
+
+                val response = webClient.post()
+                    .uri(uri.toString())
+                    .retrieve()
+                    .bodyToMono(String::class.java)
+                    .doOnError { e ->
+                        log.error("Error preloading forex $pair: ${e.message}")
+                    }
+                    .block()
+
+                log.info("Preloaded forex data for $pair: $response")
+            }
+
+            val transformResponse = webClient.post()
+                .uri("$forexBaseUrl/transform")
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .block()
+
+            log.info("Forex transform completed: $transformResponse")
+            log.info("✅ Successfully preloaded forex data for pairs: $forexPairs")
+
+        } catch (e: Exception) {
+            log.warn("⚠️ Failed to preload forex data before strategy run: ${e.message}")
+        }
+    }
 
 
     @PostMapping("/user/{user_id}/{strategy_id}/run")
@@ -194,6 +239,15 @@ class TestSandboxController(
             webClient = WebClient.create(),
             stockBaseUrl = "http://quant-ai-persistence-etl:10070/stock",
             stockSymbols = listOf("AAPL", "MSFT"), // currently static
+            startDate = startDate,
+            endDate = endDate,
+            log = log
+        )
+
+        preloadForexData(
+            webClient = WebClient.create(),
+            forexBaseUrl = "http://quant-ai-persistence-etl:10070/forex",
+            forexPairs = listOf("USD/GBP", "GBP/USD"), // currently static
             startDate = startDate,
             endDate = endDate,
             log = log
