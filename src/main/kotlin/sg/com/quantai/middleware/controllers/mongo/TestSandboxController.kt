@@ -213,6 +213,8 @@ class TestSandboxController(
         @RequestParam(required = false) endDate: String? = null,
         @RequestParam(required = false) startingCash: Double? = null,
         @RequestParam(required = false) transactionFeePercent: Double? = null,
+        @RequestParam(required = false) marginEnabled: Boolean? = null,
+        @RequestParam(required = false) initialMarginRate: Double? = null,
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
@@ -280,7 +282,20 @@ class TestSandboxController(
         try {
             val sandboxResponse = sandboxWebClient()
                 .post()
-                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate&startingCash=$startingCash&transaction_fee_percent=$transactionFeePercent")
+                .uri { builder ->
+
+                    builder.path("/strategies/user/${userId}/${strategyId}/execute")
+
+                    startDate?.let { builder.queryParam("startDate", it) }
+                    endDate?.let { builder.queryParam("endDate", it) }
+                    startingCash?.let { builder.queryParam("startingCash", it) }
+                    transactionFeePercent?.let { builder.queryParam("transaction_fee_percent", it) }
+
+                    marginEnabled?.let { builder.queryParam("marginEnabled", it) }
+                    initialMarginRate?.let { builder.queryParam("initialMarginRate", it) }
+
+                    builder.build()
+                }
                 .bodyValue(mapOf(
                     "portfolio" to portfolioJson,
                     "strategyCode" to strategyCode
