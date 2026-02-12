@@ -157,6 +157,23 @@ class TestSandboxController(
         }
     }
 
+                log.info("Preloaded data for $symbol: $response")
+            }
+
+            val transformResponse = webClient.post()
+                .uri("$stockBaseUrl/transform")
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .block()
+
+            log.info("Transform completed: $transformResponse")
+            log.info("✅ Successfully preloaded stock data for symbols: $stockSymbols")
+
+        } catch (e: Exception) {
+            log.warn("⚠️ Failed to preload stock data before strategy run: ${e.message}")
+        }
+    }
+
     fun preloadForexData(
         webClient: WebClient = WebClient.create(),
         forexBaseUrl: String = "http://quant-ai-persistence-etl:10070/forex",
