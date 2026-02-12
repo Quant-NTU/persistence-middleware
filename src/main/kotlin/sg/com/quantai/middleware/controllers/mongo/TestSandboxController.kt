@@ -82,7 +82,7 @@ class TestSandboxController(
     }
 
     fun preloadCryptoData(
-        webClient: WebClient = WebClient.create(),
+        webClient: WebClient = WebClient.create(),  // Can be mocked in tests
         cryptoBaseUrl: String = "http://quant-ai-persistence-etl:10070/crypto",
         cryptoSymbols: List<String> = listOf("BTC", "ETH"),
         startDate: String? = null,

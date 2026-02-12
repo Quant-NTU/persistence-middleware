@@ -606,4 +606,125 @@ class PortfolioController(
             "message" to "Successfully sold ${request.quantity} of ${request.name}"
         ))
     }
+
+    // ============== CASH DEPOSIT/WITHDRAW ENDPOINTS ==============
+
+    data class CashTransactionRequest(
+        val amount: BigDecimal,
+        val note: String? = null
+    )
+
+    data class CashTransactionResponse(
+        val success: Boolean,
+        val portfolio: Portfolio,
+        val message: String,
+        val transactionType: String,
+        val amount: BigDecimal,
+        val newBalance: BigDecimal
+    )
+
+    @PostMapping("/cash/deposit/{user_id}/{portfolio_id}")
+    fun depositCash(
+        @PathVariable("user_id") userId: String,
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: CashTransactionRequest
+    ): ResponseEntity<Any> {
+        // Validate amount
+        if (request.amount <= BigDecimal.ZERO) {
+            return ResponseEntity.badRequest().body(mapOf(
+                "success" to false,
+                "message" to "Deposit amount must be greater than zero"
+            ))
+        }
+
+        val user = userRepository.findOneByUid(userId)
+        val portfolio = portfolioRepository.findOneByUidAndOwner(portfolioId, user)
+
+        // Calculate new balance
+        val newBalance = portfolio.cashBalance + request.amount
+
+        // Update portfolio with new cash balance
+        val updatedPortfolio = portfolioRepository.save(
+            portfolio.copy(
+                cashBalance = newBalance,
+                updatedDate = LocalDateTime.now()
+            )
+        )
+
+        logger.info("Cash deposit: User $userId deposited ${request.amount} to portfolio $portfolioId. New balance: $newBalance")
+
+        return ResponseEntity.ok().body(CashTransactionResponse(
+            success = true,
+            portfolio = updatedPortfolio,
+            message = "Successfully deposited $${request.amount}${if (request.note != null) " - ${request.note}" else ""}",
+            transactionType = "DEPOSIT",
+            amount = request.amount,
+            newBalance = newBalance
+        ))
+    }
+
+    @PostMapping("/cash/withdraw/{user_id}/{portfolio_id}")
+    fun withdrawCash(
+        @PathVariable("user_id") userId: String,
+        @PathVariable("portfolio_id") portfolioId: String,
+        @RequestBody request: CashTransactionRequest
+    ): ResponseEntity<Any> {
+        // Validate amount
+        if (request.amount <= BigDecimal.ZERO) {
+            return ResponseEntity.badRequest().body(mapOf(
+                "success" to false,
+                "message" to "Withdrawal amount must be greater than zero"
+            ))
+        }
+
+        val user = userRepository.findOneByUid(userId)
+        val portfolio = portfolioRepository.findOneByUidAndOwner(portfolioId, user)
+
+        // Check if sufficient funds available
+        if (portfolio.cashBalance < request.amount) {
+            return ResponseEntity.badRequest().body(mapOf(
+                "success" to false,
+                "message" to "Insufficient funds. Available balance: $${portfolio.cashBalance}, Requested: $${request.amount}"
+            ))
+        }
+
+        // Calculate new balance
+        val newBalance = portfolio.cashBalance - request.amount
+
+        // Update portfolio with new cash balance
+        val updatedPortfolio = portfolioRepository.save(
+            portfolio.copy(
+                cashBalance = newBalance,
+                updatedDate = LocalDateTime.now()
+            )
+        )
+
+        logger.info("Cash withdrawal: User $userId withdrew ${request.amount} from portfolio $portfolioId. New balance: $newBalance")
+
+        return ResponseEntity.ok().body(CashTransactionResponse(
+            success = true,
+            portfolio = updatedPortfolio,
+            message = "Successfully withdrew $${request.amount}${if (request.note != null) " - ${request.note}" else ""}",
+            transactionType = "WITHDRAW",
+            amount = request.amount,
+            newBalance = newBalance
+        ))
+    }
+
+    @GetMapping("/cash/history/{user_id}/{portfolio_id}")
+    fun getCashTransactionHistory(
+        @PathVariable("user_id") userId: String,
+        @PathVariable("portfolio_id") portfolioId: String
+    ): ResponseEntity<Any> {
+        val user = userRepository.findOneByUid(userId)
+        val portfolio = portfolioRepository.findOneByUidAndOwner(portfolioId, user)
+
+        // Return current cash balance info
+        return ResponseEntity.ok().body(mapOf(
+            "portfolioId" to portfolioId,
+            "portfolioName" to portfolio.name,
+            "currentBalance" to portfolio.cashBalance,
+            "lastUpdated" to portfolio.updatedDate
+        ))
+    }
 }
