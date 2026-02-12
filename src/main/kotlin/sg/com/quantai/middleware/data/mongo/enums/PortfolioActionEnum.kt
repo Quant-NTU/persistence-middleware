@@ -4,5 +4,7 @@ enum class PortfolioActionEnum {
     BUY_REAL_ASSET,
     SELL_REAL_ASSET,
     ADD_MANUAL_ASSET,
-    REMOVE_MANUAL_ASSET
+    REMOVE_MANUAL_ASSET,
+    DEPOSIT_CASH,
+    WITHDRAW_CASH
 }
