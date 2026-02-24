@@ -203,6 +203,46 @@ class TestSandboxController(
         }
     }
 
+    fun executeSandboxStrategy(
+        webClient: WebClient,
+        userId: String,
+        strategyId: String,
+        startDate: String?,
+        endDate: String?,
+        startingCash: Double?,
+        transactionFeePercent: Double?,
+        marginEnabled: Boolean?,
+        initialMarginRate: Double?,
+        portfolioJson: Any,
+        strategyCode: String?
+    ): String? {
+
+        return webClient
+            .post()
+            .uri { builder ->
+
+                builder.path("/strategies/user/${userId}/${strategyId}/execute")
+
+                startDate?.let { builder.queryParam("startDate", it) }
+                endDate?.let { builder.queryParam("endDate", it) }
+                startingCash?.let { builder.queryParam("startingCash", it) }
+                transactionFeePercent?.let { builder.queryParam("transaction_fee_percent", it) }
+
+                marginEnabled?.let { builder.queryParam("marginEnabled", it) }
+                initialMarginRate?.let { builder.queryParam("initialMarginRate", it) }
+
+                builder.build()
+            }
+            .bodyValue(
+                mapOf(
+                    "portfolio" to portfolioJson,
+                    "strategyCode" to strategyCode
+                )
+            )
+            .retrieve()
+            .bodyToMono(String::class.java)
+            .block()
+    }
 
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
@@ -280,39 +320,19 @@ class TestSandboxController(
         )
 
         try {
-            val sandboxResponse = sandboxWebClient()
-                .post()
-                .uri { builder ->
-
-                    builder.path("/strategies/user/${userId}/${strategyId}/execute")
-
-                    startDate?.let { builder.queryParam("startDate", it) }
-                    endDate?.let { builder.queryParam("endDate", it) }
-                    startingCash?.let { builder.queryParam("startingCash", it) }
-                    transactionFeePercent?.let { builder.queryParam("transaction_fee_percent", it) }
-
-                    marginEnabled?.let { builder.queryParam("marginEnabled", it) }
-                    initialMarginRate?.let { builder.queryParam("initialMarginRate", it) }
-
-                    builder.build()
-                }
-                .bodyValue(mapOf(
-                    "portfolio" to portfolioJson,
-                    "strategyCode" to strategyCode
-                ))
-                .exchangeToMono { response ->
-                    if (!response.statusCode().is2xxSuccessful) {
-                        response.bodyToMono(String::class.java)
-                            .map { err ->
-                                log.info("Detailed Sandbox error: $err")
-                                val errMsg = objectMapper.readTree(err).path("detail")
-                                throw Exception(errMsg.asText())
-                            }
-                    } else {
-                        response.bodyToMono(String::class.java)
-                    }
-                }
-                .block()
+            val sandboxResponse = executeSandboxStrategy(
+                sandboxWebClient(),
+                userId,
+                strategyId,
+                startDate,
+                endDate,
+                startingCash,
+                transactionFeePercent,
+                marginEnabled,
+                initialMarginRate,
+                portfolioJson,
+                strategyCode
+            )
 
             return ResponseEntity.ok(sandboxResponse)
         } catch (e: Exception) {
