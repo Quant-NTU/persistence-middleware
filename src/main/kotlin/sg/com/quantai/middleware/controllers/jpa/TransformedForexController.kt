@@ -23,7 +23,12 @@ class TransformedForexController(private val service: TransformedForexService) {
         @PathVariable currencyPair: String,
         @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedForex>> {
-        val currencyPair = currencyPair.replace('|', '/')
+        // Original pairs come in format XXX/YYY but '/' splits the path, could not find a way to escape the '/' in the uri
+        // Resorted to changing XXX/YYY to XXX|YYY when building the uri, then changing it back to XXX/YYY (how it is named in DB)
+        require(Regex("^[A-Z]{3}\\|[A-Z]{3}$").matches(currencyPair)) {
+            "currencyPair must come in as XXX|YYY"
+        }
+        val currencyPair = currencyPair.replace('|', '/') 
         val data = service.getTransformedDataByCurrencyPair(currencyPair, limit)
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
