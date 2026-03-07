@@ -18,6 +18,8 @@ class TransformedForexController(private val service: TransformedForexService) {
         else ResponseEntity.ok(data)
     }
 
+    // When testing with Postman or otherwise need to encode the '|' into "%7C"
+    // Example url: http://localhost:10001/forex/transformed/GBP%7CUSD
     @GetMapping("/{currencyPair}")
     fun getTransformedDataByCurrencyPair(
         @PathVariable currencyPair: String,
@@ -25,11 +27,14 @@ class TransformedForexController(private val service: TransformedForexService) {
     ): ResponseEntity<List<TransformedForex>> {
         // Original pairs come in format XXX/YYY but '/' splits the path, could not find a way to escape the '/' in the uri
         // Resorted to changing XXX/YYY to XXX|YYY when building the uri, then changing it back to XXX/YYY (how it is named in DB)
-        require(Regex("^[A-Z]{3}\\|[A-Z]{3}$").matches(currencyPair)) {
-            "currencyPair must come in as XXX|YYY"
+        if (!Regex("^[A-Z]{3}\\|[A-Z]{3}$").matches(currencyPair)) {
+            return ResponseEntity.badRequest().build()
         }
-        val currencyPair = currencyPair.replace('|', '/') 
-        val data = service.getTransformedDataByCurrencyPair(currencyPair, limit)
+
+        val normalizedPair = currencyPair.replace('|', '/')
+
+        val data = service.getTransformedDataByCurrencyPair(normalizedPair, limit)
+
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }
