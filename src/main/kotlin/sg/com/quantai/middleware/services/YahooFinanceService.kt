@@ -317,5 +317,185 @@ class YahooFinanceService {
         logger.info("Heat Map: Fetching quotes for ${symbols.size} symbols: ${symbols.joinToString(", ")}")
         return symbols.associateWith { symbol -> fetchQuote(symbol) }
     }
+
+    /**
+     * Data class for historical price data (used for volatility calculation)
+     */
+    data class HistoricalDataPoint(
+        val date: String,
+        val close: Double,
+        val open: Double,
+        val high: Double,
+        val low: Double,
+        val volume: Long
+    )
+
+    data class HistoricalData(
+        val symbol: String,
+        val data: List<HistoricalDataPoint>,
+        val periodReturn: Double,
+        val volatility: Double,
+        val source: String
+    )
+
+    /**
+     * Fetch historical price data for ANY symbol (for volatility calculation)
+     * This is different from benchmark data - it works for any stock/crypto
+     */
+    fun fetchHistoricalData(symbol: String, days: Int): HistoricalData {
+        // Map common crypto symbols to Yahoo format
+        val yahooSymbol = CRYPTO_SYMBOLS[symbol.uppercase()] ?: symbol.uppercase()
+        val (range, interval) = getDaysToRange(days)
+        val url = "$YAHOO_FINANCE_URL/$yahooSymbol?range=$range&interval=$interval"
+
+        logger.info("Fetching historical data for $symbol ($yahooSymbol): $url")
+
+        return try {
+            val headers = HttpHeaders()
+            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            val entity = HttpEntity<String>(headers)
+
+            val response = restTemplate.exchange(url, HttpMethod.GET, entity, String::class.java)
+            val json = objectMapper.readTree(response.body)
+
+            val result = json.path("chart").path("result").get(0)
+            val timestamps = result.path("timestamp")
+            val quotes = result.path("indicators").path("quote").get(0)
+            val closes = quotes.path("close")
+            val opens = quotes.path("open")
+            val highs = quotes.path("high")
+            val lows = quotes.path("low")
+            val volumes = quotes.path("volume")
+
+            val dataPoints = mutableListOf<HistoricalDataPoint>()
+            val dailyReturns = mutableListOf<Double>()
+            var previousClose: Double? = null
+
+            for (i in 0 until timestamps.size()) {
+                val closeNode = closes.get(i)
+                if (closeNode == null || closeNode.isNull) continue
+
+                val closePrice = closeNode.asDouble()
+                val openPrice = opens.get(i)?.asDouble() ?: closePrice
+                val highPrice = highs.get(i)?.asDouble() ?: closePrice
+                val lowPrice = lows.get(i)?.asDouble() ?: closePrice
+                val volume = volumes.get(i)?.asLong() ?: 0L
+
+                val timestamp = timestamps.get(i).asLong()
+                val date = java.time.Instant.ofEpochSecond(timestamp)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate()
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+                dataPoints.add(HistoricalDataPoint(
+                    date = date,
+                    close = String.format("%.4f", closePrice).toDouble(),
+                    open = String.format("%.4f", openPrice).toDouble(),
+                    high = String.format("%.4f", highPrice).toDouble(),
+                    low = String.format("%.4f", lowPrice).toDouble(),
+                    volume = volume
+                ))
+
+                // Calculate daily return for volatility
+                if (previousClose != null && previousClose > 0) {
+                    val dailyReturn = (closePrice - previousClose) / previousClose
+                    dailyReturns.add(dailyReturn)
+                }
+                previousClose = closePrice
+            }
+
+            // Calculate period return
+            val startPrice = dataPoints.firstOrNull()?.close ?: 1.0
+            val endPrice = dataPoints.lastOrNull()?.close ?: startPrice
+            val periodReturn = if (startPrice > 0) ((endPrice - startPrice) / startPrice) * 100 else 0.0
+
+            // Calculate annualized volatility from daily returns
+            val volatility = if (dailyReturns.size >= 2) {
+                val mean = dailyReturns.average()
+                val variance = dailyReturns.map { (it - mean) * (it - mean) }.average()
+                val dailyStdDev = Math.sqrt(variance)
+                val annualizedVol = dailyStdDev * Math.sqrt(252.0) * 100 // Annualized as percentage
+                String.format("%.2f", annualizedVol).toDouble()
+            } else {
+                0.0
+            }
+
+            logger.info("$symbol: ${dataPoints.size} data points, ${String.format("%.2f", periodReturn)}% return, ${String.format("%.2f", volatility)}% volatility")
+
+            HistoricalData(
+                symbol = symbol.uppercase(),
+                data = dataPoints,
+                periodReturn = String.format("%.2f", periodReturn).toDouble(),
+                volatility = volatility,
+                source = "Yahoo Finance"
+            )
+        } catch (e: Exception) {
+            logger.error("Historical data error for $symbol: ${e.message}")
+            generateFallbackHistoricalData(symbol, days)
+        }
+    }
+
+    /**
+     * Generate fallback historical data when Yahoo Finance is unavailable
+     */
+    private fun generateFallbackHistoricalData(symbol: String, days: Int): HistoricalData {
+        val dataPoints = mutableListOf<HistoricalDataPoint>()
+        val dailyReturns = mutableListOf<Double>()
+        val endDate = LocalDate.now()
+        var currentDate = endDate.minusDays(days.toLong())
+
+        // Use symbol hash to generate consistent but different data per stock
+        val symbolHash = symbol.hashCode()
+        val basePrice = 100.0 + (Math.abs(symbolHash) % 400)
+        val dailyVol = 0.015 + (Math.abs(symbolHash % 100) / 1000.0) // 1.5% - 2.5% daily vol
+
+        var currentPrice = basePrice
+        var seed = symbolHash.toLong() + System.currentTimeMillis() % 1000
+        var previousClose: Double? = null
+
+        while (!currentDate.isAfter(endDate)) {
+            seed = (seed * 9301 + 49297) % 233280
+            val random = seed.toDouble() / 233280
+
+            val dailyReturn = dailyVol * (random - 0.5) * 2
+            currentPrice *= (1 + dailyReturn)
+
+            if (previousClose != null) {
+                dailyReturns.add(dailyReturn)
+            }
+            previousClose = currentPrice
+
+            dataPoints.add(HistoricalDataPoint(
+                date = currentDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                close = String.format("%.4f", currentPrice).toDouble(),
+                open = String.format("%.4f", currentPrice * (1 - dailyReturn * 0.5)).toDouble(),
+                high = String.format("%.4f", currentPrice * 1.01).toDouble(),
+                low = String.format("%.4f", currentPrice * 0.99).toDouble(),
+                volume = (1000000 + (seed % 5000000))
+            ))
+
+            currentDate = currentDate.plusDays(1)
+        }
+
+        val periodReturn = if (dataPoints.isNotEmpty()) {
+            ((dataPoints.last().close - dataPoints.first().close) / dataPoints.first().close) * 100
+        } else 0.0
+
+        val volatility = if (dailyReturns.size >= 2) {
+            val mean = dailyReturns.average()
+            val variance = dailyReturns.map { (it - mean) * (it - mean) }.average()
+            Math.sqrt(variance) * Math.sqrt(252.0) * 100
+        } else 25.0
+
+        logger.warn("Using fallback historical data for $symbol")
+
+        return HistoricalData(
+            symbol = symbol.uppercase(),
+            data = dataPoints,
+            periodReturn = String.format("%.2f", periodReturn).toDouble(),
+            volatility = String.format("%.2f", volatility).toDouble(),
+            source = "Simulated (Fallback)"
+        )
+    }
 }
 

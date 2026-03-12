@@ -79,6 +79,30 @@ class YahooFinanceController(
     }
 
     /**
+     * Get historical price data for ANY symbol (for volatility calculation)
+     * 
+     * @param symbol Any stock/crypto symbol (e.g., AAPL, GOOGL, PYPL, NFLX)
+     * @param days Number of days of historical data (default: 30)
+     * @return Historical price data with daily values
+     */
+    @GetMapping("/history/{symbol}")
+    fun getHistoricalData(
+        @PathVariable("symbol") symbol: String,
+        @RequestParam("days", defaultValue = "30") days: Int
+    ): ResponseEntity<Any> {
+        return try {
+            val historicalData = yahooFinanceService.fetchHistoricalData(symbol.uppercase(), days)
+            ResponseEntity.ok(historicalData)
+        } catch (e: Exception) {
+            logger.error("Error fetching historical data for $symbol: ${e.message}")
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(mapOf(
+                "success" to false,
+                "message" to "Failed to fetch historical data: ${e.message}"
+            ))
+        }
+    }
+
+    /**
      * Get real-time quote for a single symbol
      * 
      * @param symbol The stock/crypto symbol (e.g., AAPL, GOOGL, BTC, ETH)
