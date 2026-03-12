@@ -213,6 +213,7 @@ class TestSandboxController(
         transactionFeePercent: Double?,
         marginEnabled: Boolean?,
         initialMarginRate: Double?,
+        maintenanceMarginRate: Double?,
         portfolioJson: Any,
         strategyCode: String?
     ): String? {
@@ -230,6 +231,7 @@ class TestSandboxController(
 
                 marginEnabled?.let { builder.queryParam("marginEnabled", it) }
                 initialMarginRate?.let { builder.queryParam("initialMarginRate", it) }
+                maintenanceMarginRate?.let { builder.queryParam("maintenanceMarginRate", it) }
 
                 builder.build()
             }
@@ -255,6 +257,7 @@ class TestSandboxController(
         @RequestParam(required = false) transactionFeePercent: Double? = null,
         @RequestParam(required = false) marginEnabled: Boolean? = null,
         @RequestParam(required = false) initialMarginRate: Double? = null,
+        @RequestParam(required = false) maintenanceMarginRate: Double? = null,
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
@@ -330,6 +333,7 @@ class TestSandboxController(
                 transactionFeePercent,
                 marginEnabled,
                 initialMarginRate,
+                maintenanceMarginRate,
                 portfolioJson,
                 strategyCode
             )
