@@ -9,6 +9,10 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/forex/transformed")
 class TransformedForexController(private val service: TransformedForexService) {
 
+    companion object {
+        private val CURRENCY_PAIR_REGEX = Regex("^[A-Z]{3}\\|[A-Z]{3}$")
+    }
+
     @GetMapping
     fun getAllTransformedData(
         @RequestParam(defaultValue = "100") limit: Int
@@ -18,12 +22,23 @@ class TransformedForexController(private val service: TransformedForexService) {
         else ResponseEntity.ok(data)
     }
 
+    // When testing with Postman or otherwise need to encode the '|' into "%7C"
+    // Example url: http://localhost:10001/forex/transformed/GBP%7CUSD
     @GetMapping("/{currencyPair}")
     fun getTransformedDataByCurrencyPair(
         @PathVariable currencyPair: String,
         @RequestParam(defaultValue = "100") limit: Int
     ): ResponseEntity<List<TransformedForex>> {
-        val data = service.getTransformedDataByCurrencyPair(currencyPair, limit)
+        // Original pairs come in format XXX/YYY but '/' splits the path, could not find a way to escape the '/' in the uri
+        // Resorted to changing XXX/YYY to XXX|YYY when building the uri, then changing it back to XXX/YYY (how it is named in DB)
+        if (!CURRENCY_PAIR_REGEX.matches(currencyPair)) {
+            return ResponseEntity.badRequest().build()
+        }
+
+        val normalizedPair = currencyPair.replace('|', '/')
+
+        val data = service.getTransformedDataByCurrencyPair(normalizedPair, limit)
+
         return if (data.isEmpty()) ResponseEntity.noContent().build()
         else ResponseEntity.ok(data)
     }

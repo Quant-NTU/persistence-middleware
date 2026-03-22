@@ -63,7 +63,7 @@ class TransformedForexControllerTest {
         )
         `when`(service.getTransformedDataByCurrencyPair("EUR/USD", 100)).thenReturn(mockData)
 
-        val response = controller.getTransformedDataByCurrencyPair("EUR/USD", 100)
+        val response = controller.getTransformedDataByCurrencyPair("EUR|USD", 100)
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(mockData, response.body)
@@ -73,7 +73,7 @@ class TransformedForexControllerTest {
     fun `getTransformedDataByCurrencyPair returns NO_CONTENT when no data`() {
         `when`(service.getTransformedDataByCurrencyPair("EUR/USD", 100)).thenReturn(emptyList())
 
-        val response = controller.getTransformedDataByCurrencyPair("EUR/USD", 100)
+        val response = controller.getTransformedDataByCurrencyPair("EUR|USD", 100)
 
         assertEquals(HttpStatus.NO_CONTENT, response.statusCode)
     }

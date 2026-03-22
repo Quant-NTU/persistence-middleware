@@ -82,7 +82,7 @@ class TestSandboxController(
     }
 
     fun preloadCryptoData(
-        webClient: WebClient = WebClient.create(),  // Can be mocked in tests
+        webClient: WebClient = WebClient.create(),
         cryptoBaseUrl: String = "http://quant-ai-persistence-etl:10070/crypto",
         cryptoSymbols: List<String> = listOf("BTC", "ETH"),
         startDate: String? = null,
@@ -157,7 +157,92 @@ class TestSandboxController(
         }
     }
 
+    fun preloadForexData(
+        webClient: WebClient = WebClient.create(),
+        forexBaseUrl: String = "http://quant-ai-persistence-etl:10070/forex",
+        forexPairs: List<String> = listOf("USD/GBP", "GBP/USD"),
+        startDate: String? = null,
+        endDate: String? = null,
+        interval: String = "1day",
+        log: org.slf4j.Logger
+    ) {
+        try {
+            forexPairs.forEach { pair ->
+                val uri = StringBuilder(
+                    "$forexBaseUrl/historical/store-by-date" +
+                    "?currencyPair=$pair" +
+                    "&interval=$interval"
+                )
 
+                if (startDate != null) uri.append("&startDate=$startDate")
+                if (endDate != null) uri.append("&endDate=$endDate")
+
+                val response = webClient.post()
+                    .uri(uri.toString())
+                    .retrieve()
+                    .bodyToMono(String::class.java)
+                    .doOnError { e ->
+                        log.error("Error preloading forex $pair: ${e.message}")
+                    }
+                    .block()
+
+                log.info("Preloaded forex data for $pair: $response")
+            }
+
+            val transformResponse = webClient.post()
+                .uri("$forexBaseUrl/transform")
+                .retrieve()
+                .bodyToMono(String::class.java)
+                .block()
+
+            log.info("Forex transform completed: $transformResponse")
+            log.info("✅ Successfully preloaded forex data for pairs: $forexPairs")
+
+        } catch (e: Exception) {
+            log.warn("⚠️ Failed to preload forex data before strategy run: ${e.message}")
+        }
+    }
+
+    fun executeSandboxStrategy(
+        webClient: WebClient,
+        userId: String,
+        strategyId: String,
+        startDate: String?,
+        endDate: String?,
+        startingCash: Double?,
+        transactionFeePercent: Double?,
+        marginEnabled: Boolean?,
+        initialMarginRate: Double?,
+        portfolioJson: Any,
+        strategyCode: String?
+    ): String? {
+
+        return webClient
+            .post()
+            .uri { builder ->
+
+                builder.path("/strategies/user/${userId}/${strategyId}/execute")
+
+                startDate?.let { builder.queryParam("startDate", it) }
+                endDate?.let { builder.queryParam("endDate", it) }
+                startingCash?.let { builder.queryParam("startingCash", it) }
+                transactionFeePercent?.let { builder.queryParam("transaction_fee_percent", it) }
+
+                marginEnabled?.let { builder.queryParam("marginEnabled", it) }
+                initialMarginRate?.let { builder.queryParam("initialMarginRate", it) }
+
+                builder.build()
+            }
+            .bodyValue(
+                mapOf(
+                    "portfolio" to portfolioJson,
+                    "strategyCode" to strategyCode
+                )
+            )
+            .retrieve()
+            .bodyToMono(String::class.java)
+            .block()
+    }
 
     @PostMapping("/user/{user_id}/{strategy_id}/run")
     fun runStrategy(
@@ -168,6 +253,8 @@ class TestSandboxController(
         @RequestParam(required = false) endDate: String? = null,
         @RequestParam(required = false) startingCash: Double? = null,
         @RequestParam(required = false) transactionFeePercent: Double? = null,
+        @RequestParam(required = false) marginEnabled: Boolean? = null,
+        @RequestParam(required = false) initialMarginRate: Double? = null,
     ): ResponseEntity<Any> {
         val user = usersRepository.findOneByUid(userId)
         val strategy = strategiesRepository.findOneByUid(strategyId)
@@ -199,6 +286,15 @@ class TestSandboxController(
             log = log
         )
 
+        preloadForexData(
+            webClient = WebClient.create(),
+            forexBaseUrl = "http://quant-ai-persistence-etl:10070/forex",
+            forexPairs = listOf("USD/GBP", "GBP/USD"), // currently static
+            startDate = startDate,
+            endDate = endDate,
+            log = log
+        )
+
         val strategyName = strategy.title
         val filePath = strategy.path
         val s3Response = s3WebClient()
@@ -224,26 +320,19 @@ class TestSandboxController(
         )
 
         try {
-            val sandboxResponse = sandboxWebClient()
-                .post()
-                .uri("/strategies/user/${userId}/${strategyId}/execute?startDate=$startDate&endDate=$endDate&startingCash=$startingCash&transaction_fee_percent=$transactionFeePercent")
-                .bodyValue(mapOf(
-                    "portfolio" to portfolioJson,
-                    "strategyCode" to strategyCode
-                ))
-                .exchangeToMono { response ->
-                    if (!response.statusCode().is2xxSuccessful) {
-                        response.bodyToMono(String::class.java)
-                            .map { err ->
-                                log.info("Detailed Sandbox error: $err")
-                                val errMsg = objectMapper.readTree(err).path("detail")
-                                throw Exception(errMsg.asText())
-                            }
-                    } else {
-                        response.bodyToMono(String::class.java)
-                    }
-                }
-                .block()
+            val sandboxResponse = executeSandboxStrategy(
+                sandboxWebClient(),
+                userId,
+                strategyId,
+                startDate,
+                endDate,
+                startingCash,
+                transactionFeePercent,
+                marginEnabled,
+                initialMarginRate,
+                portfolioJson,
+                strategyCode
+            )
 
             return ResponseEntity.ok(sandboxResponse)
         } catch (e: Exception) {
