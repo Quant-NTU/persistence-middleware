@@ -312,13 +312,6 @@ class TestSandboxController(
             .toEntity(String::class.java)
             .block()
         val strategyCode = s3Response!!.body
-        
-
-        val portfolio = portfolioRepository.findByOwnerAndMain(user, true)
-        
-        if (portfolio == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Main portfolio not found for user")
-        }
 
 
         val portfolioHistory = portfolioHistoryRepository.findByPortfolio(portfolio)
