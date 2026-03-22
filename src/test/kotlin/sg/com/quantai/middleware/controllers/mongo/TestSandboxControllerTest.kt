@@ -323,6 +323,7 @@
             val transactionFeePercent: Double? = null
             val marginEnabled = true
             val initialMarginRate = 0.5
+            val maintenanceMarginRate = 0.25
 
             val result = controller.executeSandboxStrategy(
                 webClient = mockWebClient,
@@ -334,6 +335,7 @@
                 transactionFeePercent = transactionFeePercent,
                 marginEnabled = marginEnabled,
                 initialMarginRate = initialMarginRate,
+                maintenanceMarginRate = maintenanceMarginRate,
                 portfolioJson = portfolioJson,
                 strategyCode = strategyCode
             )
