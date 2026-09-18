@@ -63,7 +63,8 @@ dependencies {
     implementation("io.springfox:springfox-swagger-ui:2.7.0")
     implementation("org.postgresql:postgresql")
     implementation("javax.persistence:javax.persistence-api:2.2")
-
+    implementation("org.casbin:jcasbin:1.55.0") {
+    exclude group: "commons-logging", module: "commons-logging"}
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
