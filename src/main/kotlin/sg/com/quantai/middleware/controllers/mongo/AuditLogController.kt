@@ -1,5 +1,6 @@
 package sg.com.quantai.middleware.controllers.mongo
 
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import sg.com.quantai.middleware.data.mongo.AuditLog
@@ -10,11 +11,13 @@ import sg.com.quantai.middleware.repositories.mongo.AuditLogRepository
 class AuditLogController(
     private val auditLogRepository: AuditLogRepository,
 ) {
-    // GET /audit-logs — returns all entries, newest first
     @GetMapping
-    fun getAllAuditLogs(): ResponseEntity<List<AuditLog>> {
-        val logs = auditLogRepository.findAll()
-            .sortedByDescending { it.timestamp }
-        return ResponseEntity.ok(logs)
+    fun getAllAuditLogs(
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "50") size: Int,
+    ): ResponseEntity<List<AuditLog>> {
+        val pageable = PageRequest.of(page, size)
+        val logs = auditLogRepository.findAllByOrderByTimestampDesc(pageable)
+        return ResponseEntity.ok(logs.content)
     }
 }

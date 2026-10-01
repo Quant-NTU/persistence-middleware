@@ -5,42 +5,49 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.casbin.jcasbin.main.Enforcer
+import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
+import org.springframework.util.AntPathMatcher
 import org.springframework.web.filter.OncePerRequestFilter
+import sg.com.quantai.middleware.data.mongo.AuditLog
+import sg.com.quantai.middleware.repositories.mongo.AuditLogRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 
 @Component
 class CasbinFilter(
     private val enforcer: Enforcer,
     private val userRepository: UserRepository,
+    private val auditLogRepository: AuditLogRepository,
     private val mapper: ObjectMapper,
 ) : OncePerRequestFilter() {
 
-    // Map "METHOD:/path" → Casbin action code
-    // Add a new line here whenever you add a new protected endpoint
-    private val routeMap = mapOf(
-        "GET:/users/list"              to "manage_users",
-        "PUT:/users/admin"             to "manage_users",
-        "DELETE:/users/admin"          to "manage_users",
-        "GET:/portfolio"               to "view_portfolio",
-        "GET:/analytics"               to "view_analytics",
-        "POST:/strategy"               to "create_strategy",
-        "POST:/strategy/execute"       to "execute_strategy",
-        "POST:/funds/deposit"          to "deposit_funds",
-        "GET:/roles/requests"          to "manage_users",   // Admin only
-        "POST:/roles/approve"          to "manage_users",   // Admin only
-        "POST:/roles/reject"           to "manage_users",   // Admin only
-        "GET:/audit-logs"              to "manage_users",
+    private val log = LoggerFactory.getLogger(CasbinFilter::class.java)
+    private val pathMatcher = AntPathMatcher()
+
+    // Map path pattern → Casbin action using AntPathMatcher for path variables
+    private val routeMap = listOf(
+        Triple("GET",    "/users/list",                    "manage_users"),
+        Triple("PUT",    "/users/admin/**",                "manage_users"),
+        Triple("DELETE", "/users/admin/**",                "manage_users"),
+        Triple("GET",    "/portfolios/user/**",            "view_portfolio"),
+        Triple("GET",    "/analytics/**",                  "view_analytics"),
+        Triple("GET",    "/strategies/**",                 "create_strategy"),
+        Triple("POST",   "/strategies/**",                 "create_strategy"),
+        Triple("PUT",    "/strategies/**",                 "create_strategy"),
+        Triple("DELETE", "/strategies/**",                 "create_strategy"),
+        Triple("POST",   "/portfolios/cash/deposit/**",    "deposit_funds"),
+        Triple("GET",    "/roles/requests",                "manage_users"),
+        Triple("POST",   "/roles/approve",                 "manage_users"),
+        Triple("POST",   "/roles/reject",                  "manage_users"),
+        Triple("GET",    "/audit-logs/**",                 "manage_users"),
     )
 
-    // These paths skip Casbin entirely — no uid needed
     private val publicPaths = setOf(
         "/users/signin",
         "/users/login/oauth2/google",
         "/users/generate-token",
         "/users/authenticate-token",
-        "/actuator/health",
         "/roles/request",
     )
 
@@ -49,43 +56,62 @@ class CasbinFilter(
         res: HttpServletResponse,
         chain: FilterChain,
     ) {
-        // 1. Skip public routes
-        if (req.requestURI in publicPaths || req.method == "OPTIONS") {
+        val uri    = req.requestURI
+        val method = req.method
+
+        // Skip OPTIONS (CORS preflight) and public paths
+        if (method == "OPTIONS" || publicPaths.any { pathMatcher.match(it, uri) }) {
             chain.doFilter(req, res); return
         }
 
-        // 2. Check if this route needs a permission
-        val routeKey = "${req.method}:${req.requestURI}"
-        val action = routeMap[routeKey]
+        // Find matching action — default allow if no route matches (fail-open for unprotected routes)
+        val action = routeMap
+            .firstOrNull { (m, pattern, _) ->
+                m == method && pathMatcher.match(pattern, uri)
+            }?.third
+
         if (action == null) {
-            // Route not in map — let it through (not protected)
             chain.doFilter(req, res); return
         }
 
-        // 3. Get uid from request header — frontend sends this after login
+        // Get uid from token stored in localStorage by frontend
         val uid = req.getHeader("X-User-UID")
         if (uid == null) {
-            deny(res, 401, "Missing X-User-UID header", "AUTH_MISSING")
-            return
+            deny(res, 401, "Unauthenticated", "AUTH_MISSING"); return
         }
 
-        // 4. Look up user in MongoDB to get their role
+        // Resolve user from MongoDB
         val user = try {
             userRepository.findOneByUid(uid)
         } catch (e: Exception) {
-            deny(res, 401, "User not found", "USER_NOT_FOUND")
-            return
+            log.warn("[CasbinFilter] User not found or DB error for uid=$uid: ${e.message}")
+            deny(res, 401, "User not found", "USER_NOT_FOUND"); return
         }
 
-        // 5. Determine role
-        // isAdmin=true → Admin, else use the role field (Viewer or Trader)
+        if (user == null) {
+            deny(res, 401, "User not found", "USER_NOT_FOUND"); return
+        }
+
+        // Resolve role — isAdmin flag takes precedence
         val role = when {
             user.isAdmin -> "Admin"
-            else        -> user.role  // "Viewer" or "Trader"
+            else         -> user.role
         }
 
-        // 6. enforce(role, action, "allow")
+        // Enforce permission
         val allowed = enforcer.enforce(role, action, "allow")
+
+        // Audit log every decision
+        try {
+            auditLogRepository.save(AuditLog(
+                event       = if (allowed) "PERMISSION_GRANTED" else "PERMISSION_DENIED",
+                userId      = uid,
+                role        = role,
+                action      = action,
+            ))
+        } catch (e: Exception) {
+            log.warn("[CasbinFilter] Failed to write audit log: ${e.message}")
+        }
 
         if (!allowed) {
             val upgradeAvailable = role == "Viewer" &&
@@ -93,16 +119,12 @@ class CasbinFilter(
             deny(res, 403,
                 "You do not have permission to: $action",
                 "PERMISSION_DENIED",
-                mapOf(
-                    "role"             to role,
-                    "action"           to action,
-                    "upgradeAvailable" to upgradeAvailable
-                )
+                mapOf("role" to role, "action" to action,
+                      "upgradeAvailable" to upgradeAvailable)
             )
             return
         }
 
-        // 7. Attach role for controllers to use if needed
         req.setAttribute("userRole", role)
         chain.doFilter(req, res)
     }
@@ -112,7 +134,7 @@ class CasbinFilter(
         status: Int,
         error: String,
         code: String,
-        extra: Map<String, Any> = emptyMap()
+        extra: Map<String, Any> = emptyMap(),
     ) {
         res.status = status
         res.contentType = MediaType.APPLICATION_JSON_VALUE
