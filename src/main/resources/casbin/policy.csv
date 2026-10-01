@@ -1,0 +1,19 @@
+# Viewer Permissions
+p, Viewer, view_market,        allow
+p, Viewer, view_analytics,     allow
+p, Viewer, view_portfolio,     allow
+
+# Trader Permissions
+p, Trader, view_market,        allow
+p, Trader, view_analytics,     allow
+p, Trader, view_portfolio,     allow
+p, Trader, create_strategy,    allow
+p, Trader, execute_strategy,   allow
+p, Trader, deposit_funds,      allow
+
+# Admin Permissions
+p, Admin,  view_market,        allow
+p, Admin,  view_analytics,     allow
+p, Admin,  view_portfolio,     allow
+p, Admin,  manage_users,       allow
+p, Admin,  manage_permissions, allow
