@@ -1,19 +1,57 @@
-# Viewer Permissions
-p, Viewer, view_market,        allow
-p, Viewer, view_analytics,     allow
-p, Viewer, view_portfolio,     allow
 
-# Trader Permissions
-p, Trader, view_market,        allow
-p, Trader, view_analytics,     allow
-p, Trader, view_portfolio,     allow
-p, Trader, create_strategy,    allow
-p, Trader, execute_strategy,   allow
-p, Trader, deposit_funds,      allow
+# ============================================================
+# VIEWER - Read-only access
+# ============================================================
 
-# Admin Permissions
-p, Admin,  view_market,        allow
-p, Admin,  view_analytics,     allow
-p, Admin,  view_portfolio,     allow
-p, Admin,  manage_users,       allow
-p, Admin,  manage_permissions, allow
+p, Viewer, view_market, allow
+p, Viewer, view_analytics, allow
+p, Viewer, view_portfolio, allow
+p, Viewer, view_strategy, allow
+p, Viewer, request_role, allow
+p, Viewer, manage_own_2fa, allow
+
+# ============================================================
+# TRADER - Trading and portfolio management
+# ============================================================
+
+p, Trader, view_market, allow
+p, Trader, view_analytics, allow
+p, Trader, view_portfolio, allow
+p, Trader, view_strategy, allow
+
+p, Trader, create_strategy, allow
+p, Trader, modify_strategy, allow
+p, Trader, delete_strategy, allow
+p, Trader, execute_strategy, allow
+
+p, Trader, manage_portfolio, allow
+p, Trader, manage_assets, allow
+p, Trader, trade_assets, allow
+p, Trader, deposit_funds, allow
+p, Trader, withdraw_funds, allow
+
+p, Trader, request_role, allow
+p, Trader, manage_own_2fa, allow
+
+# ============================================================
+# ADMIN - Administration and trading
+# ============================================================
+
+p, Admin, view_market, allow
+p, Admin, view_analytics, allow
+p, Admin, view_portfolio, allow
+p, Admin, view_strategy, allow
+
+p, Admin, create_strategy, allow
+p, Admin, modify_strategy, allow
+p, Admin, delete_strategy, allow
+p, Admin, execute_strategy, allow
+
+p, Admin, manage_portfolio, allow
+p, Admin, manage_assets, allow
+p, Admin, trade_assets, allow
+p, Admin, deposit_funds, allow
+p, Admin, withdraw_funds, allow
+
+p, Admin, manage_users, allow
+p, Admin, manage_own_2fa, allow
