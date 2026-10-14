@@ -1,34 +1,26 @@
-
 package sg.com.quantai.middleware.controllers.mongo
 
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.time.LocalDateTime
+import java.util.Base64
 import org.mindrot.jbcrypt.BCrypt
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
 import sg.com.quantai.middleware.configs.JwtService
 import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import sg.com.quantai.middleware.requests.user.AccountConfirmationRequest
-import sg.com.quantai.middleware.requests.user.AdminRequest
-import sg.com.quantai.middleware.requests.user.AuthenticationRequest
-import sg.com.quantai.middleware.requests.user.Enable2FARequest
-import sg.com.quantai.middleware.requests.user.GoogleConfirmationRequest
-import sg.com.quantai.middleware.requests.user.LoginRequest
-import sg.com.quantai.middleware.requests.user.NameEmailRequest
-import sg.com.quantai.middleware.requests.user.PasswordRequest
-import sg.com.quantai.middleware.requests.user.UpdateSessionDurationRequest
-import sg.com.quantai.middleware.requests.user.UserRequest
+import sg.com.quantai.middleware.requests.user.*
 import sg.com.quantai.middleware.responses.auth.AuthUser
 import sg.com.quantai.middleware.responses.auth.LoginSuccessResponse
 import sg.com.quantai.middleware.responses.auth.TwoFactorRequiredResponse
 import sg.com.quantai.middleware.responses.auth.Verify2FARequest
 import sg.com.quantai.middleware.security.TotpService
 import sg.com.quantai.middleware.security.TwoFactorChallengeService
-import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.security.oauth2.jwt.Jwt
 
 @RestController
 @RequestMapping("/users")
@@ -39,664 +31,319 @@ class UserController(
     private val totpService: TotpService,
     private val challengeService: TwoFactorChallengeService,
 ) {
+    private val secureRandom = SecureRandom()
 
-    // Retrieve all users
+    private fun safeUser(user: User): AuthUser = AuthUser(
+        uid = user.uid,
+        name = user.name,
+        email = user.email,
+        role = if (user.isAdmin) "Admin" else user.role,
+        isAdmin = user.isAdmin,
+        has2fa = user.has2fa
+    )
+
+    private fun authenticatedResponse(user: User) = LoginSuccessResponse(
+        accessToken = jwtService.generateToken(user.uid),
+        user = safeUser(user)
+    )
+
+    private fun isOwnUser(uid: String, jwt: Jwt): Boolean = uid == jwt.subject
+
     @GetMapping
-    fun getAllUsers(): ResponseEntity<List<User>> {
-        val users = usersRepository.findAll()
-        return ResponseEntity.ok(users)
-    }
+    fun getAllUsers(): ResponseEntity<List<AuthUser>> =
+        ResponseEntity.ok(usersRepository.findAll().map(::safeUser))
 
-    // Build an authenticated response containing a JWT and safe user details
-    private fun authenticatedResponse(user: User): LoginSuccessResponse {
-        val effectiveRole = if (user.isAdmin) "Admin" else user.role
-
-        return LoginSuccessResponse(
-            accessToken = jwtService.generateToken(user.uid),
-            user = AuthUser(
-                uid = user.uid,
-                name = user.name,
-                email = user.email,
-                role = effectiveRole,
-                isAdmin = user.isAdmin,
-                has2fa = user.has2fa
-            )
-        )
-    }
-
-    // Get a single user by UID
     @GetMapping("/{uid}")
-    fun getOneUser(@PathVariable("uid") uid: String): ResponseEntity<User> {
-        val user = usersRepository.findOneByUid(uid)
-        return ResponseEntity.ok(user)
+    fun getOneUser(
+        @PathVariable uid: String,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        if (!isOwnUser(uid, jwt)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) {
+            return ResponseEntity.notFound().build()
+        }
+        return ResponseEntity.ok(safeUser(user))
     }
 
-    // Login using email and password
     @PostMapping("/signin")
     fun login(@RequestBody request: LoginRequest): ResponseEntity<Any> {
-        if (!userExist(request.email)) {
+        val user = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-
-        val user = usersRepository.findOneByEmail(request.email)
-
-        if (user.password == null || user.salt == null) {
+        if (user.password.isNullOrBlank() || user.salt.isNullOrBlank() ||
+            !BCrypt.checkpw(request.password, user.password)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-
-        val (hashedPassword, _) = hashAndSaltPassword(
-            request.password,
-            user.salt
-        )
-
-        if (user.password != hashedPassword) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        }
-
         if (user.has2fa) {
-            if (user.secret2FA.isNullOrBlank()) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-            }
-
+            if (user.secret2FA.isNullOrBlank()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(
-                TwoFactorRequiredResponse(
-                    challengeToken = challengeService.create(user.uid)
-                )
+                TwoFactorRequiredResponse(challengeToken = challengeService.create(user.uid))
             )
         }
-
-        val updatedUser = usersRepository.save(
-            user.copy(lastLogin = LocalDateTime.now())
-        )
-
-        return ResponseEntity.ok(authenticatedResponse(updatedUser))
+        return ResponseEntity.ok(authenticatedResponse(usersRepository.save(user.copy(lastLogin = LocalDateTime.now()))))
     }
 
-    // Verify 2FA on the backend before issuing a JWT
     @PostMapping("/verify-2fa")
-    fun verify2FA(
-        @RequestBody request: Verify2FARequest
-    ): ResponseEntity<Any> {
-        val uid = challengeService.verify(
-            request.challengeToken,
-            request.code
-        ) { challengedUid, code ->
-
-            val user = usersRepository.findOneByUid(challengedUid)
-            val secret = user.secret2FA
-
-            user.has2fa &&
-                !secret.isNullOrBlank() &&
-                totpService.verifyCode(secret, code)
-        }
-
-        if (uid == null) {
+    fun verify2FA(@RequestBody request: Verify2FARequest): ResponseEntity<Any> {
+        val uid = challengeService.verify(request.challengeToken, request.code) { challengedUid, code ->
+            val user = try { usersRepository.findOneByUid(challengedUid) } catch (_: Exception) { null }
+            user != null && user.has2fa && !user.secret2FA.isNullOrBlank() &&
+                totpService.verifyCode(user.secret2FA, code)
+        } ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-
-        val user = usersRepository.findOneByUid(uid)
-
-        if (!user.has2fa) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        }
-
-        val updatedUser = usersRepository.save(
-            user.copy(lastLogin = LocalDateTime.now())
-        )
-
-        return ResponseEntity.ok(authenticatedResponse(updatedUser))
+        if (!user.has2fa) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        return ResponseEntity.ok(authenticatedResponse(usersRepository.save(user.copy(lastLogin = LocalDateTime.now()))))
     }
 
-    // Google OAuth login
+    // This legacy OAuth endpoint does not verify a Google identity token.
+    // It must not authenticate or create accounts based solely on a supplied email.
     @PostMapping("/login/oauth2/google")
-    fun googleOAuthLogin(
-        @RequestBody request: NameEmailRequest
-    ): ResponseEntity<User> {
-        if (userExist(request.email)) {
-            val user = usersRepository.findOneByEmail(request.email)
+    fun googleOAuthLogin(@RequestBody request: NameEmailRequest): ResponseEntity<Any> =
+        ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body("Verified Google OAuth integration required")
 
-            if (user.isGoogleLogin) {
-                if (!user.has2fa) {
-                    val googleLoginUser = usersRepository.save(
-                        user.copy(lastLogin = LocalDateTime.now())
-                    )
-                    return ResponseEntity(googleLoginUser, HttpStatus.OK)
-                } else {
-                    return ResponseEntity(user, HttpStatus.ACCEPTED)
-                }
-            } else {
-                return ResponseEntity(user, HttpStatus.ACCEPTED)
-            }
-        } else {
-            val user = usersRepository.save(
-                User(
-                    name = request.name,
-                    email = request.email,
-                    role = "Viewer",
-                    isGoogleLogin = true,
-                    lastLogin = LocalDateTime.now()
-                )
-            )
-            return ResponseEntity(user, HttpStatus.OK)
-        }
-    }
-
-    // Retrieve admin or non-admin users
     @GetMapping("/list")
     fun getAdminOrNonAdminUsers(
         @RequestParam admins: Boolean,
-        @RequestParam uid: String
-    ): ResponseEntity<List<User>> {
-        val user = usersRepository.findOneByUid(uid)
-
-        if (!user.isAdmin) {
-            return ResponseEntity(HttpStatus.UNAUTHORIZED)
+        @RequestParam(required = false) uid: String?,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        val requester = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+        if (requester?.isAdmin != true || requester.role != "Admin") {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-
-        val nonAdminUsers = usersRepository.findAllByIsAdmin(admins)
-        return ResponseEntity(nonAdminUsers, HttpStatus.OK)
+        return ResponseEntity.ok(usersRepository.findAllByIsAdmin(admins).map(::safeUser))
     }
 
-    // Count admin and non-admin users
     @GetMapping("/count")
-    fun countAdminAndNonAdminUsers(): ResponseEntity<Map<String, Long>> {
-        val adminUserCount = usersRepository.countByIsAdmin(true)
-        val nonAdminUserCount = usersRepository.countByIsAdmin(false)
-
-        val countMap = mapOf(
-            "adminUsers" to adminUserCount,
-            "nonAdminUsers" to nonAdminUserCount
+    fun countAdminAndNonAdminUsers(): ResponseEntity<Map<String, Long>> = ResponseEntity.ok(
+        mapOf(
+            "adminUsers" to usersRepository.countByIsAdmin(true),
+            "nonAdminUsers" to usersRepository.countByIsAdmin(false)
         )
+    )
 
-        return ResponseEntity.ok(countMap)
-    }
-
-    // Promote user to Admin
     @PutMapping("/admin/{email}")
     fun promoteToAdminUser(
         @PathVariable email: String,
-        @RequestBody request: AdminRequest
-    ): ResponseEntity<User> {
-        val requester = usersRepository.findOneByUid(request.requesterUid)
-        val adminCount = usersRepository.countByIsAdmin(true)
-
-        if (!requester.isAdmin && adminCount != 0L) {
-            return ResponseEntity(HttpStatus.UNAUTHORIZED)
+        @RequestBody request: AdminRequest,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        val requester = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+        if (requester?.isAdmin != true || requester.role != "Admin") {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-
-        if (userExist(email)) {
-            if (checkAdminStatus(email)) {
-                return ResponseEntity(HttpStatus.EXPECTATION_FAILED)
-            }
-
-            val user = usersRepository.findOneByEmail(email)
-
-            val newAdmin = usersRepository.save(
-                user.copy(
-                    isAdmin = true,
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            return ResponseEntity(newAdmin, HttpStatus.OK)
-        } else {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
+        val user = try { usersRepository.findOneByEmail(email) } catch (_: Exception) { null }
+            ?: return ResponseEntity.notFound().build()
+        if (user.isAdmin) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        val promoted = usersRepository.save(user.copy(isAdmin = true, role = "Admin", updatedDate = LocalDateTime.now()))
+        return ResponseEntity.ok(safeUser(promoted))
     }
 
-    // Demote an Admin
     @DeleteMapping("/admin/{email}")
     fun demoteFromAdminUser(
         @PathVariable email: String,
-        @RequestBody request: AdminRequest
-    ): ResponseEntity<User> {
-        val requester = usersRepository.findOneByUid(request.requesterUid)
-
-        if (!requester.isAdmin) {
-            return ResponseEntity(HttpStatus.UNAUTHORIZED)
+        @RequestBody request: AdminRequest,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        val requester = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+        if (requester?.isAdmin != true || requester.role != "Admin") {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-
-        if (userExist(email)) {
-            if (!checkAdminStatus(email)) {
-                return ResponseEntity(HttpStatus.EXPECTATION_FAILED)
-            }
-
-            val user = usersRepository.findOneByEmail(email)
-
-            val newAdmin = usersRepository.save(
-                user.copy(
-                    isAdmin = false,
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            return ResponseEntity(newAdmin, HttpStatus.OK)
-        } else {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
+        val user = try { usersRepository.findOneByEmail(email) } catch (_: Exception) { null }
+            ?: return ResponseEntity.notFound().build()
+        if (!user.isAdmin) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        if (user.uid == jwt.subject) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val demoted = usersRepository.save(user.copy(isAdmin = false, role = "Viewer", updatedDate = LocalDateTime.now()))
+        return ResponseEntity.ok(safeUser(demoted))
     }
 
-    // Confirm Google registration
     @PostMapping("/google-confirmation")
-    fun googleConfirmation(
-        @RequestBody request: GoogleConfirmationRequest
-    ): ResponseEntity<User> {
-        if (request.oauthEmail == request.registrationEmail) {
-            val user = usersRepository.findOneByEmail(request.oauthEmail)
+    fun googleConfirmation(@RequestBody request: GoogleConfirmationRequest): ResponseEntity<Any> =
+        ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body("Verified Google OAuth integration required")
 
-            val updatedUser = usersRepository.save(
-                user.copy(
-                    name = request.name,
-                    email = request.oauthEmail,
-                    password = request.password,
-                    salt = request.salt,
-                    isRegistered = true,
-                    updatedDate = LocalDateTime.now(),
-                    lastLogin = LocalDateTime.now()
-                )
-            )
-
-            if (!updatedUser.has2fa) {
-                return ResponseEntity(updatedUser, HttpStatus.OK)
-            } else {
-                return ResponseEntity(updatedUser, HttpStatus.ACCEPTED)
-            }
-        } else {
-            return ResponseEntity(HttpStatus.EXPECTATION_FAILED)
-        }
-    }
-
-    // Confirm account registration
     @PostMapping("/account-confirmation")
-    fun accountConfirmation(
-        @RequestBody request: AccountConfirmationRequest
-    ): ResponseEntity<User> {
-        if (request.registrationEmail == request.oauthEmail) {
-            val user = usersRepository.findOneByEmail(request.registrationEmail)
+    fun accountConfirmation(@RequestBody request: AccountConfirmationRequest): ResponseEntity<Any> =
+        ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).body("Verified Google OAuth integration required")
 
-            val (hashedPassword, _) = hashAndSaltPassword(
-                request.password,
-                user.salt
-            )
-
-            if (user.password == hashedPassword) {
-                val updatedUser = usersRepository.save(
-                    user.copy(
-                        isGoogleLogin = true,
-                        updatedDate = LocalDateTime.now(),
-                        lastLogin = LocalDateTime.now()
-                    )
-                )
-
-                if (!updatedUser.has2fa) {
-                    return ResponseEntity(updatedUser, HttpStatus.OK)
-                } else {
-                    return ResponseEntity(updatedUser, HttpStatus.ACCEPTED)
-                }
-            } else {
-                return ResponseEntity(HttpStatus.UNAUTHORIZED)
-            }
-        } else {
-            return ResponseEntity(HttpStatus.EXPECTATION_FAILED)
-        }
-    }
-
-    // Enable 2FA
-    
-    // Enable 2FA only after verifying the authenticator code
     @PostMapping("/enable2FA/{uid}")
     fun enable2FA(
         @RequestBody request: Enable2FARequest,
-        @PathVariable("uid") uid: String,
+        @PathVariable uid: String,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
-        val authenticatedUid = jwt.subject
-
-        if (authenticatedUid != uid) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("You can only enable 2FA for your own account")
+        if (!isOwnUser(uid, jwt)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) {
+            return ResponseEntity.notFound().build()
         }
-
-        val user = usersRepository.findOneByUid(authenticatedUid)
-
-        if (user.has2fa) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body("2FA is already enabled")
+        if (user.has2fa) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        if (request.secret2FA.isBlank() || !totpService.verifyCode(request.secret2FA, request.code)) {
+            return ResponseEntity.badRequest().body("Invalid authenticator verification")
         }
-
-        val secret = request.secret2FA
-
-        if (secret.isBlank()) {
-            return ResponseEntity.badRequest()
-                .body("A 2FA secret is required")
-        }
-
-        val code = request.code
-
-        if (!totpService.verifyCode(secret, code)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body("Invalid 2FA verification code")
-        }
-
-        val updatedUser = usersRepository.save(
-            user.copy(
-                has2fa = true,
-                secret2FA = secret,
-                updatedDate = LocalDateTime.now()
-            )
-        )
-
-        return ResponseEntity.ok(
-            mapOf(
-                "uid" to updatedUser.uid,
-                "has2fa" to updatedUser.has2fa,
-                "message" to "2FA enabled successfully"
-            )
-        )
+        val updated = usersRepository.save(user.copy(
+            has2fa = true, secret2FA = request.secret2FA, updatedDate = LocalDateTime.now()
+        ))
+        return ResponseEntity.ok(mapOf("uid" to updated.uid, "has2fa" to updated.has2fa))
     }
 
-    // Disable 2FA for the authenticated account
     @PutMapping("/disable2FA/{uid}")
-    fun disable2FA(
-        @PathVariable("uid") uid: String,
-        @AuthenticationPrincipal jwt: Jwt
-    ): ResponseEntity<Any> {
-        val authenticatedUid = jwt.subject
-
-        if (authenticatedUid != uid) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body("You can only disable 2FA for your own account")
+    fun disable2FA(@PathVariable uid: String, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<Any> {
+        if (!isOwnUser(uid, jwt)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) {
+            return ResponseEntity.notFound().build()
         }
-
-        val user = usersRepository.findOneByUid(authenticatedUid)
-
-        if (!user.has2fa) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body("2FA is not enabled")
-        }
-
-        val updatedUser = usersRepository.save(
-            user.copy(
-                has2fa = false,
-                secret2FA = "",
-                updatedDate = LocalDateTime.now()
-            )
-        )
-
-        return ResponseEntity.ok(
-            mapOf(
-                "uid" to updatedUser.uid,
-                "has2fa" to updatedUser.has2fa,
-                "message" to "2FA disabled successfully"
-            )
-        )
+        if (!user.has2fa) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        // Reauthentication / a valid TOTP code should be required before disabling 2FA.
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("2FA re-verification is required before disabling")
     }
 
-    // Register a user
     @PostMapping
-    fun createUser(@RequestBody request: UserRequest): ResponseEntity<User> {
-        if (userExist(request.email)) {
-            val existingUser = usersRepository.findOneByEmail(request.email)
-
-            if (existingUser.isRegistered) {
-                return ResponseEntity(HttpStatus.NO_CONTENT)
-            } else {
-                val (hashedPassword, salt) = hashAndSaltPassword(request.password)
-
-                val updatedExistingUser = existingUser.copy(
-                    name = request.name,
-                    email = request.email,
-                    password = hashedPassword,
-                    salt = salt,
-                    updatedDate = LocalDateTime.now(),
-                    isRegistered = true,
-                    isAdmin = false
-                )
-
-                return ResponseEntity(updatedExistingUser, HttpStatus.ACCEPTED)
-            }
-        } else {
-            val (hashedPassword, salt) = hashAndSaltPassword(request.password)
-
-            val user = usersRepository.save(
-                User(
-                    name = request.name,
-                    email = request.email,
-                    role = "Viewer",
-                    password = hashedPassword,
-                    salt = salt,
-                    isRegistered = true
-                )
-            )
-
-            return ResponseEntity(user, HttpStatus.CREATED)
-        }
+    fun createUser(@RequestBody request: UserRequest): ResponseEntity<Any> {
+        val existing = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) { null }
+        if (existing != null) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        val (hashedPassword, salt) = hashAndSaltPassword(request.password)
+        val user = usersRepository.save(User(
+            name = request.name, email = request.email, role = "Viewer",
+            password = hashedPassword, salt = salt, isRegistered = true
+        ))
+        return ResponseEntity.status(HttpStatus.CREATED).body(safeUser(user))
     }
 
-    // Update user profile
     @PutMapping("/{uid}")
     fun updateUser(
         @RequestBody request: NameEmailRequest,
-        @PathVariable("uid") uid: String
-    ): ResponseEntity<User> {
-        val user = usersRepository.findOneByUid(uid)
-
-        if (userExist(request.email) && request.email != user.email) {
-            return ResponseEntity(HttpStatus.FORBIDDEN)
-        } else {
-            val updatedUser = usersRepository.save(
-                user.copy(
-                    name = request.name,
-                    email = request.email,
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            return ResponseEntity.ok(updatedUser)
+        @PathVariable uid: String,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        if (!isOwnUser(uid, jwt)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) {
+            return ResponseEntity.notFound().build()
         }
+        val existing = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) { null }
+        if (existing != null && existing.uid != uid) return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        val updated = usersRepository.save(user.copy(
+            name = request.name, email = request.email, updatedDate = LocalDateTime.now()
+        ))
+        return ResponseEntity.ok(safeUser(updated))
     }
 
-    // Reset password
+    // Password recovery is authorized by a single-use, expiring reset token.
+    // No bearer JWT is required, but possession of the reset token is mandatory.
     @PutMapping("/reset-password/{uid}")
     fun updatePassword(
         @RequestBody request: PasswordRequest,
-        @PathVariable("uid") uid: String
-    ): ResponseEntity<User> {
-        val user = usersRepository.findOneByUid(uid)
-
-        val (hashedPassword, salt) = hashAndSaltPassword(
-            request.newPassword,
-            user.salt
-        )
-
-        if (user.password != hashedPassword) {
-            val updatedUser = usersRepository.save(
-                user.copy(
-                    password = hashedPassword,
-                    salt = salt,
-                    passwordToken = null,
-                    passwordTokenExpiration = LocalDateTime.now(),
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            return ResponseEntity.ok(updatedUser)
-        } else {
-            return ResponseEntity(HttpStatus.NOT_MODIFIED)
+        @PathVariable uid: String
+    ): ResponseEntity<Any> {
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) { null }
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (!validToken(user.passwordToken, request.resetPasswordToken) ||
+            !validTokenExpiration(user.passwordTokenExpiration)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-    }
-
-    // Hash and salt a password
-    fun hashAndSaltPassword(
-        plainTextPassword: String,
-        salt: String? = null
-    ): Pair<String, String> {
-        val generatedSalt = salt ?: BCrypt.gensalt()
-        val hashedPassword = BCrypt.hashpw(plainTextPassword, generatedSalt)
-
-        return Pair(hashedPassword, generatedSalt)
-    }
-
-    // Authenticate password-reset token
-    @PostMapping("/authenticate-token")
-    fun authenticateToken(
-        @RequestBody request: AuthenticationRequest
-    ): ResponseEntity<User> {
-        val user = usersRepository.findOneByEmail(request.email)
-
-        if (validToken(user.passwordToken, request.resetPasswordToken)) {
-            if (validTokenExpiration(user.passwordTokenExpiration)) {
-                return ResponseEntity.ok(user)
-            } else {
-                return ResponseEntity(HttpStatus.UNAUTHORIZED)
-            }
-        } else {
-            return ResponseEntity(HttpStatus.UNAUTHORIZED)
+        if (request.newPassword.isBlank()) return ResponseEntity.badRequest().build()
+        if (user.password != null && BCrypt.checkpw(request.newPassword, user.password)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build()
         }
-    }
-
-    // Generate password-reset token
-    @PostMapping("/generate-token")
-    fun generatePasswordToken(
-        @RequestBody request: NameEmailRequest
-    ): ResponseEntity<User> {
-        if (userExist(request.email)) {
-            val user = usersRepository.findOneByEmail(request.email)
-
-            val updatedUser = usersRepository.save(
-                user.copy(
-                    passwordToken = getRandomString(30),
-                    passwordTokenExpiration = LocalDateTime.now().plusHours(1),
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            emailService.sendResetPasswordEmail(
-                updatedUser.name,
-                updatedUser.email,
-                updatedUser.passwordToken
-            )
-
-            return ResponseEntity.ok(updatedUser)
-        } else {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
-    }
-
-    // Update session duration
-    @PostMapping("/update-session-duration")
-    fun updateSessionDuration(
-        @RequestBody request: UpdateSessionDurationRequest
-    ): ResponseEntity<User> {
-        if (userExist(request.email)) {
-            val user = usersRepository.findOneByEmail(request.email)
-
-            val updatedUser = usersRepository.save(
-                user.copy(
-                    sessionDuration = request.sessionDuration,
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            return ResponseEntity(updatedUser, HttpStatus.OK)
-        } else {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
-    }
-
-    // Toggle session timeout
-    @PostMapping("/update-session-timeout-status")
-    fun updateSessionTimeoutStatus(
-        @RequestBody request: NameEmailRequest
-    ): ResponseEntity<User> {
-        if (userExist(request.email)) {
-            val user = usersRepository.findOneByEmail(request.email)
-
-            val updatedUser = usersRepository.save(
-                user.copy(
-                    hasSessionTimeout = !user.hasSessionTimeout,
-                    updatedDate = LocalDateTime.now()
-                )
-            )
-
-            return ResponseEntity(updatedUser, HttpStatus.OK)
-        } else {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
-    }
-
-    // Count users by session timeout status
-    @GetMapping("/count-session-timeout")
-    fun countUsersBySessionTimeout(): ResponseEntity<Map<String, Long>> {
-        val timeoutEnabledUserCount = usersRepository.countByHasSessionTimeout(true)
-        val nonTimeoutEnabledUserCount = usersRepository.countByHasSessionTimeout(false)
-
-        val countMap = mapOf(
-            "timeoutEnabledUsers" to timeoutEnabledUserCount,
-            "nonTimeoutEnabledUsers" to nonTimeoutEnabledUserCount
-        )
-
-        return ResponseEntity.ok(countMap)
-    }
-
-    // Generate a random string
-    fun getRandomString(length: Int): String {
-        val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
-        return (1..length).map { allowedChars.random() }.joinToString("")
-    }
-
-    // Compare password-reset tokens
-    fun validToken(userToken: String?, token: String): Boolean {
-        if (userToken.isNullOrBlank() || token.isBlank()) {
-            return false
-        }
-
-        return MessageDigest.isEqual(
-            userToken.toByteArray(Charsets.UTF_8),
-            token.toByteArray(Charsets.UTF_8)
-        )
-    }
-
-    // Check password-reset token expiration
-    fun validTokenExpiration(tokenExpiration: LocalDateTime): Boolean {
-        return tokenExpiration > LocalDateTime.now()
-    }
-
-    // Delete user
-    @DeleteMapping("/{uid}")
-    fun deleteUser(@PathVariable("uid") uid: String): ResponseEntity<Unit> {
-        usersRepository.deleteById(uid)
+        val (hashedPassword, salt) = hashAndSaltPassword(request.newPassword)
+        usersRepository.save(user.copy(
+            password = hashedPassword,
+            salt = salt,
+            passwordToken = null,
+            passwordTokenExpiration = LocalDateTime.now(),
+            updatedDate = LocalDateTime.now()
+        ))
         return ResponseEntity.noContent().build()
     }
 
-    // Retrieve all users
-    fun getUsers(): List<User> {
-        return usersRepository.findAll()
+    fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
+        val generatedSalt = salt ?: BCrypt.gensalt()
+        return Pair(BCrypt.hashpw(plainTextPassword, generatedSalt), generatedSalt)
     }
 
-    // Check whether a user exists
-    fun userExist(email: String): Boolean {
-        val listOfUsers: List<User> = getUsers()
-
-        for (user in listOfUsers) {
-            if (user.email == email) {
-                return true
-            }
+    @PostMapping("/authenticate-token")
+    fun authenticateToken(@RequestBody request: AuthenticationRequest): ResponseEntity<Any> {
+        val user = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) { null }
+        if (user == null || !validToken(user.passwordToken, request.resetPasswordToken) ||
+            !validTokenExpiration(user.passwordTokenExpiration)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-
-        return false
+        return ResponseEntity.ok(mapOf("valid" to true))
     }
 
-    // Check whether a user is an Admin
-    fun checkAdminStatus(email: String): Boolean {
-        val adminUsers: List<User> = usersRepository.findAllByIsAdmin(true)
-
-        for (adminUser in adminUsers) {
-            if (email == adminUser.email) {
-                return true
-            }
+    @PostMapping("/generate-token")
+    fun generatePasswordToken(@RequestBody request: NameEmailRequest): ResponseEntity<Any> {
+        val user = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) { null }
+        if (user != null) {
+            val token = getRandomString(48)
+            val updated = usersRepository.save(user.copy(
+                passwordToken = token,
+                passwordTokenExpiration = LocalDateTime.now().plusHours(1),
+                updatedDate = LocalDateTime.now()
+            ))
+            emailService.sendResetPasswordEmail(updated.name, updated.email, token)
         }
-
-        return false
+        return ResponseEntity.ok(mapOf("message" to "If the account exists, reset instructions have been sent"))
     }
+
+    @PostMapping("/update-session-duration")
+    fun updateSessionDuration(
+        @RequestBody request: UpdateSessionDurationRequest,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        val user = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+            ?: return ResponseEntity.notFound().build()
+        if (user.email != request.email) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val updated = usersRepository.save(user.copy(
+            sessionDuration = request.sessionDuration, updatedDate = LocalDateTime.now()
+        ))
+        return ResponseEntity.ok(safeUser(updated))
+    }
+
+    @PostMapping("/update-session-timeout-status")
+    fun updateSessionTimeoutStatus(
+        @RequestBody request: NameEmailRequest,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+        val user = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+            ?: return ResponseEntity.notFound().build()
+        if (user.email != request.email) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val updated = usersRepository.save(user.copy(
+            hasSessionTimeout = !user.hasSessionTimeout, updatedDate = LocalDateTime.now()
+        ))
+        return ResponseEntity.ok(safeUser(updated))
+    }
+
+    @GetMapping("/count-session-timeout")
+    fun countUsersBySessionTimeout(): ResponseEntity<Map<String, Long>> = ResponseEntity.ok(
+        mapOf(
+            "timeoutEnabledUsers" to usersRepository.countByHasSessionTimeout(true),
+            "nonTimeoutEnabledUsers" to usersRepository.countByHasSessionTimeout(false)
+        )
+    )
+
+    fun getRandomString(length: Int): String {
+        val bytes = ByteArray((length * 3 + 3) / 4)
+        secureRandom.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes).take(length)
+    }
+
+    fun validToken(userToken: String?, token: String): Boolean =
+        !userToken.isNullOrBlank() && token.isNotBlank() &&
+            MessageDigest.isEqual(userToken.toByteArray(Charsets.UTF_8), token.toByteArray(Charsets.UTF_8))
+
+    fun validTokenExpiration(tokenExpiration: LocalDateTime): Boolean = tokenExpiration.isAfter(LocalDateTime.now())
+
+    @DeleteMapping("/{uid}")
+    fun deleteUser(@PathVariable uid: String, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<Any> {
+        if (!isOwnUser(uid, jwt)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) { null }
+            ?: return ResponseEntity.notFound().build()
+        usersRepository.delete(user)
+        return ResponseEntity.noContent().build()
+    }
+
+    fun getUsers(): List<User> = usersRepository.findAll()
+    fun userExist(email: String): Boolean = usersRepository.findAll().any { it.email == email }
+    fun checkAdminStatus(email: String): Boolean = usersRepository.findAllByIsAdmin(true).any { it.email == email }
 }

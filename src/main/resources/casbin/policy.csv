@@ -9,6 +9,7 @@ p, Viewer, view_portfolio, allow
 p, Viewer, view_strategy, allow
 p, Viewer, request_role, allow
 p, Viewer, manage_own_2fa, allow
+p, Viewer, manage_own_profile, allow
 
 # ============================================================
 # TRADER - Trading and portfolio management
@@ -32,6 +33,7 @@ p, Trader, withdraw_funds, allow
 
 p, Trader, request_role, allow
 p, Trader, manage_own_2fa, allow
+p, Trader, manage_own_profile, allow
 
 # ============================================================
 # ADMIN - Administration and trading
@@ -39,19 +41,8 @@ p, Trader, manage_own_2fa, allow
 
 p, Admin, view_market, allow
 p, Admin, view_analytics, allow
-p, Admin, view_portfolio, allow
-p, Admin, view_strategy, allow
 
-p, Admin, create_strategy, allow
-p, Admin, modify_strategy, allow
-p, Admin, delete_strategy, allow
-p, Admin, execute_strategy, allow
-
-p, Admin, manage_portfolio, allow
-p, Admin, manage_assets, allow
-p, Admin, trade_assets, allow
-p, Admin, deposit_funds, allow
-p, Admin, withdraw_funds, allow
 
 p, Admin, manage_users, allow
 p, Admin, manage_own_2fa, allow
+p, Admin, manage_own_profile, allow

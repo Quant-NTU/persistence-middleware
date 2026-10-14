@@ -23,12 +23,16 @@ class RoleController(
     private val enforcer: Enforcer
 ) {
 
+    // ============================================================
     // POST /roles/request
-    // Authenticated Viewer submits a Trader access request
+    // Viewer requests Trader access
+    // ============================================================
+
     @PostMapping("/request")
     fun requestTraderAccess(
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
+
         val userId = jwt.subject
 
         val user = try {
@@ -60,19 +64,26 @@ class RoleController(
         auditLogRepository.save(
             AuditLog(
                 event = "TRADER_ACCESS_REQUESTED",
-                userId = userId
+                userId = userId,
+                role = "Viewer",
+                action = "request_trader_access",
+                performedBy = userId
             )
         )
 
         return ResponseEntity.status(HttpStatus.CREATED).body(request)
     }
 
+    // ============================================================
     // GET /roles/requests
-    // Admin views all pending Trader access requests
+    // Admin retrieves pending Trader access requests
+    // ============================================================
+
     @GetMapping("/requests")
     fun getPendingRequests(
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
+
         val adminId = jwt.subject
 
         val admin = try {
@@ -82,23 +93,27 @@ class RoleController(
                 .body("Authenticated user not found")
         }
 
-        if (!admin.isAdmin) {
+        if (!admin.isAdmin || admin.role != "Admin") {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body("Only Admins can view access requests")
         }
 
-        val requests = accessRequestRepository.findByStatus("Pending")
-
-        return ResponseEntity.ok(requests)
+        return ResponseEntity.ok(
+            accessRequestRepository.findByStatus("Pending")
+        )
     }
 
+    // ============================================================
     // POST /roles/approve?userId=xxx
-    // Admin approves an existing Trader access request
+    // Admin approves Trader access
+    // ============================================================
+
     @PostMapping("/approve")
     fun approveTraderAccess(
         @RequestParam userId: String,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
+
         val adminId = jwt.subject
 
         val admin = try {
@@ -108,7 +123,7 @@ class RoleController(
                 .body("Authenticated user not found")
         }
 
-        if (!admin.isAdmin) {
+        if (!admin.isAdmin || admin.role != "Admin") {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body("Only Admins can approve Trader access")
         }
@@ -118,11 +133,12 @@ class RoleController(
                 .body("You cannot approve your own access request")
         }
 
-        val pendingRequest = accessRequestRepository.findByUserIdAndStatus(
-            userId,
-            "Pending"
-        ) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body("No pending Trader access request found")
+        val pendingRequest =
+            accessRequestRepository.findByUserIdAndStatus(
+                userId,
+                "Pending"
+            ) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("No pending Trader access request found")
 
         val user = try {
             userRepository.findOneByUid(userId)
@@ -138,7 +154,7 @@ class RoleController(
 
         val now = LocalDateTime.now()
 
-        // 1. Update user's role in MongoDB
+        // 1. Update user role in MongoDB
         userRepository.save(
             user.copy(
                 role = "Trader",
@@ -153,7 +169,7 @@ class RoleController(
 
         enforcer.addRoleForUser(userId, "Trader")
 
-        // 3. Mark the pending request as approved
+        // 3. Mark access request as approved
         accessRequestRepository.save(
             pendingRequest.copy(
                 status = "Approved",
@@ -162,28 +178,35 @@ class RoleController(
             )
         )
 
-        // 4. Record the authenticated Admin in the audit log
+        // 4. Record successful approval
         auditLogRepository.save(
             AuditLog(
-                event = "ROLE_ASSIGNED",
+                event = "TRADER_ACCESS_APPROVED",
                 userId = userId,
                 role = "Trader",
+                action = "approve_trader_access",
                 performedBy = adminId
             )
         )
 
         return ResponseEntity.ok(
-            mapOf("message" to "Trader role granted to $userId")
+            mapOf(
+                "message" to "Trader role granted to $userId"
+            )
         )
     }
 
+    // ============================================================
     // POST /roles/reject?userId=xxx
-    // Admin rejects an existing Trader access request
+    // Admin rejects Trader access
+    // ============================================================
+
     @PostMapping("/reject")
     fun rejectTraderAccess(
         @RequestParam userId: String,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
+
         val adminId = jwt.subject
 
         val admin = try {
@@ -193,7 +216,7 @@ class RoleController(
                 .body("Authenticated user not found")
         }
 
-        if (!admin.isAdmin) {
+        if (!admin.isAdmin || admin.role != "Admin") {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body("Only Admins can reject Trader access")
         }
@@ -203,11 +226,12 @@ class RoleController(
                 .body("You cannot reject your own access request")
         }
 
-        val pendingRequest = accessRequestRepository.findByUserIdAndStatus(
-            userId,
-            "Pending"
-        ) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body("No pending Trader access request found")
+        val pendingRequest =
+            accessRequestRepository.findByUserIdAndStatus(
+                userId,
+                "Pending"
+            ) ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("No pending Trader access request found")
 
         val now = LocalDateTime.now()
 
@@ -221,14 +245,103 @@ class RoleController(
 
         auditLogRepository.save(
             AuditLog(
-                event = "ROLE_REJECTED",
+                event = "TRADER_ACCESS_REJECTED",
                 userId = userId,
+                role = "Viewer",
+                action = "reject_trader_access",
                 performedBy = adminId
             )
         )
 
         return ResponseEntity.ok(
-            mapOf("message" to "Request rejected for $userId")
+            mapOf(
+                "message" to "Request rejected for $userId"
+            )
+        )
+    }
+
+    // ============================================================
+    // POST /roles/demote?userId=xxx
+    // Admin revokes Trader privileges
+    // ============================================================
+
+    @PostMapping("/demote")
+    fun demoteTraderToViewer(
+        @RequestParam userId: String,
+        @AuthenticationPrincipal jwt: Jwt
+    ): ResponseEntity<Any> {
+
+        val adminId = jwt.subject
+
+        // 1. Verify requester is an Admin
+        val admin = try {
+            userRepository.findOneByUid(adminId)
+        } catch (e: Exception) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body("Authenticated user not found")
+        }
+
+        if (!admin.isAdmin || admin.role != "Admin") {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Only Admins can demote Traders")
+        }
+
+        // 2. Prevent self-demotion
+        if (adminId == userId) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("You cannot demote your own account")
+        }
+
+        // 3. Find the target user
+        val user = try {
+            userRepository.findOneByUid(userId)
+        } catch (e: Exception) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("Target user not found")
+        }
+
+        // 4. Only Traders can be demoted to Viewer
+        if (user.isAdmin || user.role != "Trader") {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body("Only Trader accounts can be demoted to Viewer")
+        }
+
+        val now = LocalDateTime.now()
+
+        // 5. Update role in MongoDB
+        userRepository.save(
+            user.copy(
+                role = "Viewer",
+                updatedDate = now
+            )
+        )
+
+        // 6. Synchronize Casbin role assignment
+        enforcer.getRolesForUser(userId).forEach { existingRole ->
+            enforcer.deleteRoleForUser(userId, existingRole)
+        }
+
+        enforcer.addRoleForUser(userId, "Viewer")
+
+        // 7. Record Trader demotion
+        auditLogRepository.save(
+            AuditLog(
+                event = "TRADER_DEMOTED",
+                userId = userId,
+                role = "Viewer",
+                action = "demote_trader_to_viewer",
+                performedBy = adminId
+            )
+        )
+
+        return ResponseEntity.ok(
+            mapOf(
+                "message" to "Trader $userId successfully demoted to Viewer",
+                "userId" to userId,
+                "previousRole" to "Trader",
+                "newRole" to "Viewer",
+                "performedBy" to adminId
+            )
         )
     }
 }

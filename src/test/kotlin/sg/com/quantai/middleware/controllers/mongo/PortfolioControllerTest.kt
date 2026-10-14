@@ -1,96 +1,139 @@
+
+import org.springframework.data.mongodb.core.MongoTemplate
 import sg.com.quantai.middleware.repositories.mongo.*
 import sg.com.quantai.middleware.data.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
 import sg.com.quantai.middleware.requests.assets.CryptoRequest
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import sg.com.quantai.middleware.configs.JwtService
+import sg.com.quantai.middleware.MiddlewareApplication
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.test.context.junit.jupiter.SpringExtension
-import java.time.LocalDateTime
-import org.mindrot.jbcrypt.BCrypt
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.MediaType
+import org.mindrot.jbcrypt.BCrypt
+
 import java.math.BigDecimal
-import sg.com.quantai.middleware.MiddlewareApplication
 
-
-@SpringBootTest(classes = [MiddlewareApplication::class], webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ExtendWith(SpringExtension::class)
-
-class PortfolioControllerTest 
-@Autowired 
-constructor(
+@SpringBootTest(
+    classes = [MiddlewareApplication::class],
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+)
+@ActiveProfiles("rbac-test")
+class PortfolioControllerTest @Autowired constructor(
     private val restTemplate: TestRestTemplate,
     private val portfolioRepository: PortfolioRepository,
     private val portfolioHistoryRepository: PortfolioHistoryRepository,
     private val cryptoRepository: CryptoRepository,
     private val stockRepository: StockRepository,
     private val forexRepository: ForexRepository,
-    private val userRepository: UserRepository
+    private val mongoTemplate: MongoTemplate,
+    private val userRepository: UserRepository,
+    private val jwtService: JwtService
 ) {
-    @LocalServerPort protected var port: Int = 0
+
+    @LocalServerPort
+    protected var port: Int = 0
 
     @BeforeEach
     fun setUp() {
-        portfolioRepository.deleteAll()
+        check(mongoTemplate.db.name == "quantai_rbac_automated_test") {
+            "REFUSING destructive cleanup: unsafe MongoDB database ${mongoTemplate.db.name}"
+        }
+
         portfolioHistoryRepository.deleteAll()
+        portfolioRepository.deleteAll()
         cryptoRepository.deleteAll()
         stockRepository.deleteAll()
         forexRepository.deleteAll()
         userRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/portfolios"
-    
+    private fun getRootUrl(): String =
+        "http://localhost:$port/portfolios"
+
+    // ------------------------------------------------------------
+    // JWT AUTHENTICATION HELPERS
+    // ------------------------------------------------------------
+
+    private fun authHeaders(user: User): HttpHeaders =
+        HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_JSON
+            setBearerAuth(jwtService.generateToken(user.uid))
+        }
+
+    private fun <T : Any> authenticatedRequest(
+        user: User,
+        method: HttpMethod,
+        path: String,
+        responseType: Class<T>,
+        body: Any? = null
+    ) = restTemplate.exchange(
+        getRootUrl() + path,
+        method,
+        HttpEntity(body, authHeaders(user)),
+        responseType
+    )
+
+    // ------------------------------------------------------------
+    // TEST DATA HELPERS
+    // ------------------------------------------------------------
+
     private fun saveOnePortfolio(
         name: String = "Test",
         description: String = "Test2",
         main: Boolean = false,
-        owner: User = userRepository.save(User(name="Name", email="Email", password="Password", salt="Salt")),
-    )=  
+        owner: User = userRepository.save(
+            User(
+                name = "Name",
+                email = "Email",
+                password = "Password",
+                salt = "Salt",
+                role = "Trader"
+            )
+        )
+    ): Portfolio =
         portfolioRepository.save(
-            Portfolio(   
+            Portfolio(
                 name = name,
                 description = description,
                 main = main,
-                owner = owner,
+                owner = owner
             )
         )
 
     private fun preparePortfolioRequest(
         name: String = "TestName",
-        description: String = "test description",
-    ) =
-        PortfolioRequest(
-            name= name,
-            description= description,
-        )
-    
+        description: String = "test description"
+    ) = PortfolioRequest(
+        name = name,
+        description = description
+    )
+
     private fun prepareCryptoRequest(
         portfolio_uid: String = "TestC",
         name: String = "TestAsset",
-        quantity: BigDecimal = BigDecimal(1),
+        quantity: BigDecimal = BigDecimal.ONE,
         purchasePrice: BigDecimal = BigDecimal(3),
         symbol: String = "TST",
-        action: String = "Add",
-    ) =
-        CryptoRequest(
-            portfolio_uid= portfolio_uid,
-            name= name,
-            quantity = quantity,
-            purchasePrice = purchasePrice,
-            symbol = symbol,
-            action = action
-        )
+        action: String = "Add"
+    ) = CryptoRequest(
+        portfolio_uid = portfolio_uid,
+        name = name,
+        quantity = quantity,
+        purchasePrice = purchasePrice,
+        symbol = symbol,
+        action = action
+    )
 
     private fun saveOneAsset(
         name: String = "TestAsset",
@@ -107,7 +150,7 @@ constructor(
                 symbol = symbol
             )
         )
-    
+
         portfolioHistoryRepository.save(
             PortfolioHistory(
                 asset = crypto,
@@ -119,51 +162,96 @@ constructor(
         )
     }
 
-    private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
-
+    private fun hashAndSaltPassword(
+        plainTextPassword: String,
+        salt: String? = null
+    ): Pair<String, String> {
         val generatedSalt = salt ?: BCrypt.gensalt()
-        val hashedPassword = BCrypt.hashpw(plainTextPassword, generatedSalt)
+        val hashedPassword = BCrypt.hashpw(
+            plainTextPassword,
+            generatedSalt
+        )
 
         return Pair(hashedPassword, generatedSalt)
     }
+
+    // ============================================================
+    // TEST 1: VIEW USER PORTFOLIOS
+    // ============================================================
 
     @Test
     fun `should return all portfolios from a user`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
         val (password2, salt2) = hashAndSaltPassword("Password2")
-        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
-        val user2 = userRepository.save(User(name="Name2", email="Email2", password=password2, salt=salt2))
+
+        val user1 = userRepository.save(
+            User(
+                name = "Name1",
+                email = "Email1",
+                password = password1,
+                salt = salt1,
+                role = "Viewer"
+            )
+        )
+
+        val user2 = userRepository.save(
+            User(
+                name = "Name2",
+                email = "Email2",
+                password = password2,
+                salt = salt2,
+                role = "Viewer"
+            )
+        )
+
         val user1Id = user1.uid
         val user2Id = user2.uid
 
-       // 1 (Default) portfolio for user 1
-       var response =
-        restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        // User 1 initially has one default portfolio.
+        var response = authenticatedRequest(
+            user1,
+            HttpMethod.GET,
+            "/user/$user1Id",
+            List::class.java
+        )
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
 
-        // 1 (Default) portfolio for user 2
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+        // User 2 also has one default portfolio.
+        response = authenticatedRequest(
+            user2,
+            HttpMethod.GET,
+            "/user/$user2Id",
+            List::class.java
+        )
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
 
-        // 2 portfolio for user 1
+        // Add another portfolio for user 1.
         saveOnePortfolio(owner = user1)
-        
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+
+        response = authenticatedRequest(
+            user1,
+            HttpMethod.GET,
+            "/user/$user1Id",
+            List::class.java
+        )
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(2, response.body?.size)
-        
-        response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+
+        // User 2's portfolio count must remain unchanged.
+        response = authenticatedRequest(
+            user2,
+            HttpMethod.GET,
+            "/user/$user2Id",
+            List::class.java
+        )
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
@@ -171,126 +259,242 @@ constructor(
 
         saveOnePortfolio(owner = user1)
     }
+
+    // ============================================================
+    // TEST 2: DELETE PORTFOLIO
+    // ============================================================
 
     @Test
     fun `should not be able to delete main portfolio, but can delete others`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+
+        val user1 = userRepository.save(
+            User(
+                name = "Name1",
+                email = "Email1",
+                password = password1,
+                salt = salt1,
+                role = "Trader"
+            )
+        )
+
         val user1Id = user1.uid
 
-        val portfolio1 = saveOnePortfolio(owner = user1,main=true)
-        val portfolio1_Id = portfolio1.uid
+        val portfolio1 = saveOnePortfolio(
+            owner = user1,
+            main = true
+        )
+        val portfolio1Id = portfolio1.uid
+
         val portfolio2 = saveOnePortfolio(owner = user1)
-        val portfolio2_Id = portfolio2.uid
+        val portfolio2Id = portfolio2.uid
 
         saveOneAsset(portfolio = portfolio1)
         saveOneAsset(portfolio = portfolio2)
 
-        var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        var response = authenticatedRequest(
+            user1,
+            HttpMethod.GET,
+            "/user/$user1Id",
+            List::class.java
+        )
+
+        assertEquals(200, response.statusCode.value())
         assertEquals(2, response.body?.size)
 
-        val deleteResponse1 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$portfolio1_Id",
+        // Main portfolio cannot be deleted.
+        val deleteResponse1 = authenticatedRequest(
+            user1,
             HttpMethod.DELETE,
-            HttpEntity(null, HttpHeaders()),
+            "/user/$user1Id/$portfolio1Id",
             String::class.java
         )
 
-        assertEquals("Cannot delete main portfolio.", deleteResponse1.body)
-    
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        assertEquals(
+            "Cannot delete main portfolio",
+            deleteResponse1.body
+        )
+
+        response = authenticatedRequest(
+            user1,
+            HttpMethod.GET,
+            "/user/$user1Id",
+            List::class.java
+        )
+
         assertEquals(2, response.body?.size)
-    
-        val deleteResponse3 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$portfolio2_Id",
+
+        // Non-main portfolio can be deleted.
+        val deleteResponse2 = authenticatedRequest(
+            user1,
             HttpMethod.DELETE,
-            HttpEntity(null, HttpHeaders()),
+            "/user/$user1Id/$portfolio2Id",
             String::class.java
         )
-        assertEquals("Deleted portfolio ${portfolio2.name}", deleteResponse3.body)
-    
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+
+        assertEquals(
+            "Deleted portfolio ${portfolio2.name}",
+            deleteResponse2.body
+        )
+
+        response = authenticatedRequest(
+            user1,
+            HttpMethod.GET,
+            "/user/$user1Id",
+            List::class.java
+        )
+
         assertEquals(1, response.body?.size)
 
-        val portfoliohistory: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
-        assertEquals(2, portfoliohistory.size)
+        val portfolioHistory: List<PortfolioHistory> =
+            portfolioHistoryRepository.findByPortfolio(portfolio1)
+
+        assertEquals(2, portfolioHistory.size)
     }
+
+    // ============================================================
+    // TEST 3: UPDATE PORTFOLIO DESCRIPTION
+    // ============================================================
 
     @Test
     fun `should be able to edit a portfolio - Description`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+
+        val user = userRepository.save(
+            User(
+                name = "Name1",
+                email = "Email1",
+                password = password1,
+                salt = salt1,
+                role = "Trader"
+            )
+        )
+
         val userId = user.uid
 
-        val portfolio1 = saveOnePortfolio(owner = user,main=true)
+        saveOnePortfolio(
+            owner = user,
+            main = true
+        )
+
         val portfolio2 = saveOnePortfolio(owner = user)
-        val portfolio2_Id = portfolio2.uid
+        val portfolio2Id = portfolio2.uid
 
         val portfolioRequest = preparePortfolioRequest()
-        val updatedResponse =
-            restTemplate.exchange(
-                getRootUrl() + "/$userId/$portfolio2_Id",
-                HttpMethod.PUT,
-                HttpEntity(portfolioRequest, HttpHeaders()),
-                Portfolio::class.java
-            )
 
-        val updatedPortfolio = portfolioRepository.findOneByUid(portfolio2_Id)
+        val updatedResponse = authenticatedRequest(
+            user,
+            HttpMethod.PUT,
+            "/$userId/$portfolio2Id",
+            Portfolio::class.java,
+            portfolioRequest
+        )
 
-        assertEquals(201, updatedResponse.statusCode.value())
-        assertEquals(portfolio2_Id, updatedPortfolio.uid) // Id same
+        val updatedPortfolio =
+            portfolioRepository.findOneByUid(portfolio2Id)
+
+        assertEquals(200, updatedResponse.statusCode.value())
+        assertEquals(portfolio2Id, updatedPortfolio.uid)
         assertEquals(portfolioRequest.name, updatedPortfolio.name)
-        assertEquals(portfolioRequest.description, updatedPortfolio.description)
+        assertEquals(
+            portfolioRequest.description,
+            updatedPortfolio.description
+        )
     }
+
+    // ============================================================
+    // TEST 4: TRANSFER CRYPTO ASSETS
+    // ============================================================
 
     @Test
     fun `should be able to edit a portfolio - Assets`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+
+        val user = userRepository.save(
+            User(
+                name = "Name1",
+                email = "Email1",
+                password = password1,
+                salt = salt1,
+                role = "Trader"
+            )
+        )
+
         val userId = user.uid
 
-        val portfolio1 = saveOnePortfolio(owner = user,main=true)
+        val portfolio1 = saveOnePortfolio(
+            owner = user,
+            main = true
+        )
+
         val portfolio2 = saveOnePortfolio(owner = user)
-        val portfolio2_Id = portfolio2.uid
+        val portfolio2Id = portfolio2.uid
 
-        val cryptoRequest = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
-        val updatedResponse =
-            restTemplate.exchange(
-                getRootUrl() + "/asset/crypto/update/$userId",
-                HttpMethod.POST,
-                HttpEntity(cryptoRequest, HttpHeaders()),
-                String::class.java
-            )
+        // Case 1: No asset available for transfer.
+        val cryptoRequest = prepareCryptoRequest(
+            portfolio_uid = portfolio2Id
+        )
 
-        assertEquals(403, updatedResponse.statusCode.value())
-        assertEquals("You have no asset of the name ${cryptoRequest.name}", updatedResponse.body)
+        val updatedResponse = authenticatedRequest(
+            user,
+            HttpMethod.POST,
+            "/asset/crypto/update/$userId",
+            String::class.java,
+            cryptoRequest
+        )
 
+        assertEquals(404, updatedResponse.statusCode.value())
+        assertNotNull(updatedResponse.body)
+
+        // Case 2: Attempt to remove more than available.
         saveOneAsset(portfolio = portfolio1)
-        val cryptoRequest2 = prepareCryptoRequest(portfolio_uid = portfolio2_Id,action="Remove")
-        val updatedResponse2 =
-            restTemplate.exchange(
-                getRootUrl() + "/asset/crypto/update/$userId",
-                HttpMethod.POST,
-                HttpEntity(cryptoRequest2, HttpHeaders()),
-                String::class.java
-            )
-        assertEquals(403, updatedResponse2.statusCode.value())
-        assertEquals("Cannot remove more than amount in portfolio.", updatedResponse2.body)
 
-        val cryptoRequest3 = prepareCryptoRequest(portfolio_uid = portfolio2_Id)
-        val updatedResponse3 =
-            restTemplate.exchange(
-                getRootUrl() + "/asset/crypto/update/$userId",
-                HttpMethod.POST,
-                HttpEntity(cryptoRequest3, HttpHeaders()),
-                String::class.java
-            )
+        val cryptoRequest2 = prepareCryptoRequest(
+            portfolio_uid = portfolio2Id,
+            action = "Remove"
+        )
+
+        val updatedResponse2 = authenticatedRequest(
+            user,
+            HttpMethod.POST,
+            "/asset/crypto/update/$userId",
+            String::class.java,
+            cryptoRequest2
+        )
+
+        assertEquals(400, updatedResponse2.statusCode.value())
+        assertEquals(
+            "Insufficient asset quantity in source portfolio",
+            updatedResponse2.body
+        )
+
+        // Case 3: Successfully transfer assets.
+        val cryptoRequest3 = prepareCryptoRequest(
+            portfolio_uid = portfolio2Id
+        )
+
+        val updatedResponse3 = authenticatedRequest(
+            user,
+            HttpMethod.POST,
+            "/asset/crypto/update/$userId",
+            String::class.java,
+            cryptoRequest3
+        )
+
         assertEquals(200, updatedResponse3.statusCode.value())
-        assertEquals("Transferred ${cryptoRequest.quantity} from default portfolio to ${portfolio2.name}.", updatedResponse3.body)
-        val portfoliohistory_1: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio1)
-        assertEquals(2, portfoliohistory_1.size)
-        val portfoliohistory_2: List<PortfolioHistory> = portfolioHistoryRepository.findByPortfolio(portfolio2)
-        assertEquals(1, portfoliohistory_2.size)
-    }
+        assertEquals(
+            "Transferred ${cryptoRequest3.quantity} from ${portfolio1.name} to ${portfolio2.name}.",
+            updatedResponse3.body
+        )
 
+        val portfolioHistory1: List<PortfolioHistory> =
+            portfolioHistoryRepository.findByPortfolio(portfolio1)
+
+        assertEquals(2, portfolioHistory1.size)
+
+        val portfolioHistory2: List<PortfolioHistory> =
+            portfolioHistoryRepository.findByPortfolio(portfolio2)
+
+        assertEquals(1, portfolioHistory2.size)
+    }
 }

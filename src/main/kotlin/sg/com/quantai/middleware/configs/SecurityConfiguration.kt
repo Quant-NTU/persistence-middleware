@@ -1,6 +1,7 @@
 
 package sg.com.quantai.middleware.configs
 
+import jakarta.servlet.DispatcherType
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -17,18 +18,15 @@ class SecurityConfiguration(
     private val casbinFilter: CasbinFilter
 ) {
 
-    // Prevent Spring Boot from automatically registering CasbinFilter
-    // as a standalone servlet filter.
-    //
-    // CasbinFilter will run only within the Spring Security filter chain,
-    // after JWT authentication.
+    // Prevent CasbinFilter from being automatically registered
+    // as a servlet filter outside Spring Security.
+    // It is added explicitly to the Spring Security filter chain below.
     @Bean
-    fun casbinFilterRegistration(): FilterRegistrationBean<CasbinFilter> {
-        return FilterRegistrationBean<CasbinFilter>().apply {
+    fun casbinFilterRegistration(): FilterRegistrationBean<CasbinFilter> =
+        FilterRegistrationBean<CasbinFilter>().apply {
             filter = casbinFilter
             isEnabled = false
         }
-    }
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -41,47 +39,42 @@ class SecurityConfiguration(
                 it.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             }
             .authorizeHttpRequests {
+
+                // FIX: Allow Spring Boot to return normal error responses.
+                // Without this, a 400 Bad Request can become a misleading
+                // 401 Unauthorized when Spring forwards to /error.
+                it.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+
+                // Allow CORS preflight requests.
                 it.requestMatchers(
                     HttpMethod.OPTIONS,
                     "/**"
                 ).permitAll()
 
-                // Public registration endpoint
-		it.requestMatchers(
-   		   HttpMethod.POST,
-    		   "/users"
- 		   ).permitAll()
-
-		// Public authentication endpoints
-		   it.requestMatchers(
-    		   HttpMethod.POST,
-    		   "/users/signin"
-		).permitAll()
-
+                // Public endpoints: registration, login and 2FA verification.
                 it.requestMatchers(
                     HttpMethod.POST,
-                    "/users/verify-2fa"
-                ).permitAll()
-
-                // Public password-reset endpoints
-                it.requestMatchers(
-                    HttpMethod.POST,
-                    "/users/generate-token"
-                ).permitAll()
-
-                it.requestMatchers(
-                    HttpMethod.POST,
+                    "/users",
+                    "/users/signin",
+                    "/users/verify-2fa",
+                    "/users/generate-token",
                     "/users/authenticate-token"
                 ).permitAll()
 
-                // All other endpoints require a verified JWT
+                // Password reset is authorized by its reset token.
+                it.requestMatchers(
+                    HttpMethod.PUT,
+                    "/users/reset-password/*"
+                ).permitAll()
+
+                // All other endpoints require authentication.
                 it.anyRequest().authenticated()
             }
             .oauth2ResourceServer {
                 it.jwt { }
             }
 
-        // Run Casbin after JWT authentication.
+        // Run Casbin RBAC after JWT authentication.
         http.addFilterAfter(
             casbinFilter,
             BearerTokenAuthenticationFilter::class.java

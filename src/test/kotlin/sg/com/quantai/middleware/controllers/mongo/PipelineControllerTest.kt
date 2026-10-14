@@ -1,5 +1,12 @@
 package sg.com.quantai.middleware.controllers.mongo
 
+import org.springframework.data.mongodb.core.MongoTemplate
+
+import sg.com.quantai.middleware.configs.JwtService
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.http.MediaType
+
+
 import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.data.mongo.Pipeline
 import sg.com.quantai.middleware.data.mongo.Strategy
@@ -25,27 +32,56 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("rbac-test")
 @ExtendWith(SpringExtension::class)
 //@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class PipelineControllerTest 
-@Autowired 
+class PipelineControllerTest
+@Autowired
 constructor(
     private val pipelineRepository: PipelineRepository,
     private val strategyRepository: StrategyRepository,
+    private val mongoTemplate: MongoTemplate,
     private val userRepository: UserRepository,
-    private val restTemplate: TestRestTemplate
+    private val restTemplate: TestRestTemplate,
+        private val jwtService: JwtService
 ) {
     @LocalServerPort protected var port: Int = 0
 
     @BeforeEach
     fun setUp() {
+        check(mongoTemplate.db.name == "quantai_rbac_automated_test") {
+            "REFUSING destructive cleanup: unsafe MongoDB database ${mongoTemplate.db.name}"
+        }
+
         pipelineRepository.deleteAll()
         strategyRepository.deleteAll()
         userRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String? = "http://localhost:$port/pipelines"
-    
+
+private fun getRootUrl(): String =
+    "http://localhost:$port/pipelines"
+
+private fun authHeaders(user: User): HttpHeaders =
+    HttpHeaders().apply {
+        contentType = MediaType.APPLICATION_JSON
+        setBearerAuth(jwtService.generateToken(user.uid))
+    }
+
+private fun <T : Any> authenticatedRequest(
+    user: User,
+    method: HttpMethod,
+    path: String,
+    responseType: Class<T>,
+    body: Any? = null
+) = restTemplate.exchange(
+    getRootUrl() + path,
+    method,
+    HttpEntity(body, authHeaders(user)),
+    responseType
+)
+
+
     private fun saveOnePipeline(
         title: String = "Test Pipeline",
         description: String = "This is a test pipeline",
@@ -79,13 +115,13 @@ constructor(
         //         owner = owner
         //     )
         // )
-    )=  
+    )=
         pipelineRepository.save(
             Pipeline(
                 title = title,
                 description = description,
                 strategies = strategies,
-                updatedDate = LocalDateTime.now(), 
+                updatedDate = LocalDateTime.now(),
                 // portfolio = portfolio,
                 owner = owner,
             )
@@ -114,14 +150,14 @@ constructor(
     fun `should return all pipelines from a user`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
         val (password2, salt2) = hashAndSaltPassword("Password2")
-        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
-        val user2 = userRepository.save(User(name="Name2", email="Email2", password=password2, salt=salt2))
+        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1, role="Viewer"))
+        val user2 = userRepository.save(User(name="Name2", email="Email2", password=password2, salt=salt2, role="Viewer"))
         val user1Id = user1.uid
         val user2Id = user2.uid
 
        // No pipelines for user 1
        var response =
-        restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
@@ -129,7 +165,7 @@ constructor(
 
         // No pipelines for user 2
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+            authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
@@ -138,14 +174,14 @@ constructor(
         saveOnePipeline(owner = user1)
         // 1 pipeline for user 1
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+            authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(1, response.body?.size)
         // No pipelines for user 2
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+            authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
@@ -154,14 +190,14 @@ constructor(
         saveOnePipeline(owner = user1)
         // 2 pipelines for user 1
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+            authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(2, response.body?.size)
         // No pipelines for user 2
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+            authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
@@ -170,14 +206,14 @@ constructor(
         saveOnePipeline(owner = user2)
         // 2 pipelines for user 1
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+            authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         assertEquals(2, response.body?.size)
         // 1 pipeline for user 2
         response =
-            restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+            authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
@@ -187,7 +223,7 @@ constructor(
     @Test
     fun `should return single pipeline by id`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1, role="Viewer"))
         val userId = user.uid
 
         saveOnePipeline(owner=user)
@@ -206,7 +242,7 @@ constructor(
         val savedId = saveOnePipeline(owner=user).uid
 
         val response =
-                restTemplate.getForEntity(getRootUrl() + "/user/$userId/$savedId", Pipeline::class.java)
+                authenticatedRequest(user, HttpMethod.GET, "/user/$userId/$savedId", Pipeline::class.java)
         assertEquals(200, response.statusCode.value())
         assertNotNull(response.body)
         // assertEquals(portfolio1.uid, response.body?.portfolio?.uid)
@@ -216,7 +252,7 @@ constructor(
     @Test
     fun `should create a pipeline using selected portfolio`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1, role="Trader"))
         val userId = user.uid
 
         // val p1 = portfolioRepository.save(
@@ -234,12 +270,7 @@ constructor(
         val pipelineRequest = preparePipelineRequest()
 
         val response =
-            restTemplate.exchange(
-                getRootUrl() + "/$userId",
-                HttpMethod.POST,
-                HttpEntity(pipelineRequest, HttpHeaders()),
-                Pipeline::class.java
-            )
+            authenticatedRequest(user, HttpMethod.POST, "/$userId", Pipeline::class.java, pipelineRequest)
 
         assertEquals(201, response.statusCode.value())
         assertEquals(userId, response.body?.owner?.uid)
@@ -253,7 +284,7 @@ constructor(
     @Test
     fun `should update an existing pipeline`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1, role="Trader"))
         val userId = user.uid
 
         val pipeline = saveOnePipeline(owner=user)
@@ -284,13 +315,12 @@ constructor(
         val pipelineRequest = preparePipelineRequest(strategies_id=combinedStratIds)
 
         val updatedResponse =
-            restTemplate.exchange(
-                getRootUrl() + "/user/$userId/$pipelineId",
-                HttpMethod.PUT,
-                HttpEntity(pipelineRequest, HttpHeaders()),
-                Pipeline::class.java
-            )
-        val updatedPipeline = pipelineRepository.findOneByUid(pipelineId)
+            authenticatedRequest(user, HttpMethod.PUT, "/user/$userId/$pipelineId", Pipeline::class.java, pipelineRequest)
+        val updatedPipeline = requireNotNull(
+            pipelineRepository.findOneByUid(pipelineId)
+        ) {
+            "Expected pipeline $pipelineId to exist"
+        }
 
         // Check if the updatedPipeline is null
         // if (updatedPipeline.strategies == emptyList<NewStrategy>()) {
@@ -299,7 +329,7 @@ constructor(
         // else {
         //     expectedList.forEach { strategy ->
         //         println("Expected Strategy - Title: ${strategy.title}, UID: ${strategy.uid}, Path: ${strategy.path}, Owner: ${strategy.owner}")
-        //     }        
+        //     }
         //     updatedPipeline.strategies?.forEach { strategy ->
         //         println("Updated Strategy - Title: ${strategy.title}, UID: ${strategy.uid}, Path: ${strategy.path}, Owner: ${strategy.owner}")
         //     }?: println("No strategies found in the updated pipeline")
@@ -318,7 +348,7 @@ constructor(
     @Test
     fun `should return strategies of pipeline with duplicate strategies in correct order`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
-        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
+        val user = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1, role="Trader"))
         val userId = user.uid
 
         val pipeline = saveOnePipeline(owner=user)
@@ -351,13 +381,12 @@ constructor(
         val pipelineRequest = preparePipelineRequest(strategies_id=combinedStratIds)
 
         val updatedResponse =
-            restTemplate.exchange(
-                getRootUrl() + "/user/$userId/$pipelineId",
-                HttpMethod.PUT,
-                HttpEntity(pipelineRequest, HttpHeaders()),
-                Pipeline::class.java
-            )
-        val updatedPipeline = pipelineRepository.findOneByUid(pipelineId)
+            authenticatedRequest(user, HttpMethod.PUT, "/user/$userId/$pipelineId", Pipeline::class.java, pipelineRequest)
+        val updatedPipeline = requireNotNull(
+            pipelineRepository.findOneByUid(pipelineId)
+        ) {
+            "Expected pipeline $pipelineId to exist"
+        }
 
         assertEquals(200, updatedResponse.statusCode.value())
         assertEquals(pipelineId, updatedPipeline.uid) // Id same
@@ -370,8 +399,8 @@ constructor(
     fun `should delete an existing pipeline`() {
         val (password1, salt1) = hashAndSaltPassword("Password1")
         val (password2, salt2) = hashAndSaltPassword("Password2")
-        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1))
-        val user2 = userRepository.save(User(name="Name2", email="Email2", password=password2, salt=salt2))
+        val user1 = userRepository.save(User(name="Name1", email="Email1", password=password1, salt=salt1, role="Trader"))
+        val user2 = userRepository.save(User(name="Name2", email="Email2", password=password2, salt=salt2, role="Trader"))
         val user1Id = user1.uid
         val user2Id = user2.uid
 
@@ -379,57 +408,42 @@ constructor(
         val pipeline1_2_Id = saveOnePipeline(owner = user1).uid
         val pipeline2_1_Id = saveOnePipeline(owner = user2).uid
 
-        var response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+        var response = authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
         assertEquals(2, response.body?.size)
 
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+        response = authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
         assertEquals(1, response.body?.size)
 
         // Delete pipeline1_1 for user 1
-        val deleteResponse1 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$pipeline1_1_Id",
-            HttpMethod.DELETE,
-            HttpEntity(null, HttpHeaders()),
-            String::class.java
-        )
+        val deleteResponse1 = authenticatedRequest(user1, HttpMethod.DELETE, "/user/$user1Id/$pipeline1_1_Id", String::class.java)
 
         assertEquals("Deleted pipeline $pipeline1_1_Id", deleteResponse1.body)
-    
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+
+        response = authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
 
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+        response = authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
         assertEquals(1, response.body?.size)
 
         // Delete pipeline2_1 for user 2
-        val deleteResponse2 = restTemplate.exchange(
-            getRootUrl() + "/user/$user2Id/$pipeline2_1_Id",
-            HttpMethod.DELETE,
-            HttpEntity(null, HttpHeaders()),
-            String::class.java
-        )
+        val deleteResponse2 = authenticatedRequest(user2, HttpMethod.DELETE, "/user/$user2Id/$pipeline2_1_Id", String::class.java)
 
         assertEquals("Deleted pipeline $pipeline2_1_Id", deleteResponse2.body)
-    
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+
+        response = authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
         assertEquals(1, response.body?.size)
 
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+        response = authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
         assertEquals(0, response.body?.size)
 
         // Delete pipeline1_2 for user 1
-        val deleteResponse3 = restTemplate.exchange(
-            getRootUrl() + "/user/$user1Id/$pipeline1_2_Id",
-            HttpMethod.DELETE,
-            HttpEntity(null, HttpHeaders()),
-            String::class.java
-        )
+        val deleteResponse3 = authenticatedRequest(user1, HttpMethod.DELETE, "/user/$user1Id/$pipeline1_2_Id", String::class.java)
         assertEquals("Deleted pipeline $pipeline1_2_Id", deleteResponse3.body)
-    
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user1Id", List::class.java)
+
+        response = authenticatedRequest(user1, HttpMethod.GET, "/user/$user1Id", List::class.java)
         assertEquals(0, response.body?.size)
 
-        response = restTemplate.getForEntity(getRootUrl() + "/user/$user2Id", List::class.java)
+        response = authenticatedRequest(user2, HttpMethod.GET, "/user/$user2Id", List::class.java)
         assertEquals(0, response.body?.size)
     }
 }

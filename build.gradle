@@ -77,10 +77,24 @@ dependencies {
 
 }
 
+
 test {
     useJUnitPlatform()
 
-    finalizedBy check
+    // Isolated MongoDB database for automated tests
+    systemProperty "spring.profiles.active", "rbac-test"
+    systemProperty "spring.data.mongodb.database", "quantai_rbac_automated_test"
+
+    doFirst {
+        def database = systemProperties["spring.data.mongodb.database"]
+
+        if (database != "quantai_rbac_automated_test") {
+            throw new GradleException(
+                "Unsafe test database: ${database}"
+            )
+        }
+    }
+
     testLogging {
         events "PASSED", "FAILED", "SKIPPED"
     }
