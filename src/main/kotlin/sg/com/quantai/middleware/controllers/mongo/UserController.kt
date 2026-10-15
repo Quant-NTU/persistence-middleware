@@ -33,14 +33,19 @@ class UserController(
 ) {
     private val secureRandom = SecureRandom()
 
+
     private fun safeUser(user: User): AuthUser = AuthUser(
         uid = user.uid,
         name = user.name,
         email = user.email,
         role = if (user.isAdmin) "Admin" else user.role,
         isAdmin = user.isAdmin,
-        has2fa = user.has2fa
+        has2fa = user.has2fa,
+        hasSessionTimeout = user.hasSessionTimeout,
+        sessionDuration = user.sessionDuration,
+        lastLogin = user.lastLogin
     )
+
 
     private fun authenticatedResponse(user: User) = LoginSuccessResponse(
         accessToken = jwtService.generateToken(user.uid),
@@ -187,16 +192,53 @@ class UserController(
         return ResponseEntity.ok(mapOf("uid" to updated.uid, "has2fa" to updated.has2fa))
     }
 
-    @PutMapping("/disable2FA/{uid}")
-    fun disable2FA(@PathVariable uid: String, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<Any> {
-        if (!isOwnUser(uid, jwt)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        val user = try { usersRepository.findOneByUid(uid) } catch (_: Exception) {
-            return ResponseEntity.notFound().build()
-        }
-        if (!user.has2fa) return ResponseEntity.status(HttpStatus.CONFLICT).build()
-        // Reauthentication / a valid TOTP code should be required before disabling 2FA.
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("2FA re-verification is required before disabling")
+
+@PutMapping("/disable2FA/{uid}")
+fun disable2FA(
+    @PathVariable uid: String,
+    @RequestBody request: Disable2FARequest,
+    @AuthenticationPrincipal jwt: Jwt
+): ResponseEntity<Any> {
+
+    // Only the authenticated account owner may disable 2FA.
+    if (!isOwnUser(uid, jwt)) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
     }
+
+    val user = try {
+        usersRepository.findOneByUid(uid)
+    } catch (_: Exception) {
+        return ResponseEntity.notFound().build()
+    }
+
+    if (!user.has2fa || user.secret2FA.isNullOrBlank()) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body("2FA is not enabled for this account")
+    }
+
+    // Require a fresh authenticator verification code.
+    if (!totpService.verifyCode(user.secret2FA, request.code)) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body("Invalid 2FA verification code")
+    }
+
+    // Disable 2FA only after successful verification.
+    val updated = usersRepository.save(
+        user.copy(
+            has2fa = false,
+            secret2FA = null,
+            updatedDate = LocalDateTime.now()
+        )
+    )
+
+    return ResponseEntity.ok(
+        mapOf(
+            "uid" to updated.uid,
+            "has2fa" to updated.has2fa
+        )
+    )
+}
+
 
     @PostMapping
     fun createUser(@RequestBody request: UserRequest): ResponseEntity<Any> {

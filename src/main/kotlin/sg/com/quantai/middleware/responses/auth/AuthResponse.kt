@@ -1,12 +1,18 @@
 package sg.com.quantai.middleware.responses.auth
 
+import java.time.LocalDateTime
+import java.math.BigDecimal
+
 data class AuthUser(
     val uid: String,
     val name: String,
     val email: String,
     val role: String,
     val isAdmin: Boolean,
-    val has2fa: Boolean
+    val has2fa: Boolean,
+    val hasSessionTimeout: Boolean,
+    val sessionDuration: BigDecimal,
+    val lastLogin: LocalDateTime?
 )
 
 data class LoginSuccessResponse(

@@ -129,6 +129,8 @@ class CasbinFilter(
             "withdraw_funds"
         ),
 
+
+        // Market data permissions
         Triple("GET", "/forex/transformed", "view_market"),
         Triple("GET", "/forex/transformed/**", "view_market"),
         Triple("GET", "/crypto/transformed", "view_market"),
@@ -136,6 +138,13 @@ class CasbinFilter(
         Triple("GET", "/stock/transformed", "view_market"),
         Triple("GET", "/stock/transformed/**", "view_market"),
         Triple("GET", "/news_articles/all", "view_market"),
+
+        // Portfolio quotes and benchmark market data
+        Triple("GET", "/portfolios/quotes", "view_market"),
+        Triple("GET", "/portfolios/quote/{symbol}", "view_market"),
+        Triple("GET", "/portfolios/benchmark/{symbol}", "view_market"),
+        Triple("GET", "/portfolios/benchmarks/all", "view_market"),
+
 
         Triple("GET", "/analytics/**", "view_analytics"),
         Triple("POST", "/analytics/compare", "view_analytics"),
