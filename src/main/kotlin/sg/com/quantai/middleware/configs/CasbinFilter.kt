@@ -174,7 +174,8 @@ class CasbinFilter(
         Triple("GET", "/roles/requests", "manage_users"),
         Triple("POST", "/roles/approve", "manage_users"),
         Triple("POST", "/roles/reject", "manage_users"),
-	Triple("POST", "/roles/demote", "manage_users"),
+        Triple("POST", "/roles/demote", "manage_users"),
+        Triple("POST", "/roles/recover", "manage_users"),
         Triple("POST", "/roles/request", "request_role"),
 
         // Audit log access

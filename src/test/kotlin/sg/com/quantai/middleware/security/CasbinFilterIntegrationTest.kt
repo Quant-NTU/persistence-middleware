@@ -426,4 +426,142 @@ class CasbinFilterIntegrationTest(
         assertEquals(admin.uid, rejectedRequest!!.resolvedBy)
     }
 
+
+    @Test
+    fun `viewer cannot recover access requests`() {
+        val viewer = createUser()
+
+        val response = request(HttpMethod.POST, "/roles/recover", viewer)
+
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+    }
+
+    @Test
+    fun `admin can recover access requests`() {
+        val admin = createUser(role = "Admin", admin = true)
+
+        val response = request(HttpMethod.POST, "/roles/recover", admin)
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+    }
+
+    @Test
+    fun `recovery restores stale viewer request to pending`() {
+        val viewer = createUser()
+        val admin = createUser(role = "Admin", admin = true)
+
+        assertDatabaseIsolation()
+
+        val accessRequest = accessRequestRepository.save(
+            sg.com.quantai.middleware.data.mongo.AccessRequest(
+                userId = viewer.uid,
+                status = "Processing",
+                processingStartedAt = java.time.LocalDateTime.now().minusMinutes(10),
+                resolvedBy = admin.uid
+            )
+        )
+
+        val response = request(HttpMethod.POST, "/roles/recover", admin)
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+
+        val recovered = accessRequestRepository.findById(accessRequest.id.toHexString()).orElseThrow()
+
+        assertEquals("Pending", recovered.status)
+        assertEquals(null, recovered.processingStartedAt)
+        assertEquals(null, recovered.resolvedBy)
+        assertEquals("Viewer", userRepository.findOneByUid(viewer.uid).role)
+    }
+
+    @Test
+    fun `recovery flags stale trader request for manual review`() {
+        val trader = createUser(role = "Trader")
+        val admin = createUser(role = "Admin", admin = true)
+
+        assertDatabaseIsolation()
+
+        val accessRequest = accessRequestRepository.save(
+            sg.com.quantai.middleware.data.mongo.AccessRequest(
+                userId = trader.uid,
+                status = "Processing",
+                processingStartedAt = java.time.LocalDateTime.now().minusMinutes(10),
+                resolvedBy = admin.uid
+            )
+        )
+
+        val response = request(HttpMethod.POST, "/roles/recover", admin)
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        org.junit.jupiter.api.Assertions.assertTrue(
+            response.body?.contains("MANUAL_REVIEW_REQUIRED") == true
+        )
+
+        val unchanged = accessRequestRepository.findById(accessRequest.id.toHexString()).orElseThrow()
+
+        assertEquals("Processing", unchanged.status)
+        assertEquals("Trader", userRepository.findOneByUid(trader.uid).role)
+    }
+
+    @Test
+    fun `concurrent approval and rejection cannot both succeed`() {
+        val viewer = createUser()
+        val admin1 = createUser(role = "Admin", admin = true)
+        val admin2 = createUser(role = "Admin", admin = true)
+
+        assertEquals(
+            HttpStatus.CREATED,
+            request(HttpMethod.POST, "/roles/request", viewer).statusCode
+        )
+
+        val start = java.util.concurrent.CountDownLatch(1)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
+
+        try {
+            val approve = pool.submit<Int> {
+                start.await()
+                request(
+                    HttpMethod.POST,
+                    "/roles/approve?userId=${viewer.uid}",
+                    admin1
+                ).statusCode.value()
+            }
+
+            val reject = pool.submit<Int> {
+                start.await()
+                request(
+                    HttpMethod.POST,
+                    "/roles/reject?userId=${viewer.uid}",
+                    admin2
+                ).statusCode.value()
+            }
+
+            start.countDown()
+
+            val statuses = listOf(
+                approve.get(30, java.util.concurrent.TimeUnit.SECONDS),
+                reject.get(30, java.util.concurrent.TimeUnit.SECONDS)
+            )
+
+            assertEquals(1, statuses.count { it == 200 })
+
+            val approved = accessRequestRepository.findByUserIdAndStatus(
+                viewer.uid, "Approved"
+            )
+            val rejected = accessRequestRepository.findByUserIdAndStatus(
+                viewer.uid, "Rejected"
+            )
+
+            val finalRole = userRepository.findOneByUid(viewer.uid).role
+
+            if (approved != null) {
+                assertEquals("Trader", finalRole)
+                assertEquals(null, rejected)
+            } else {
+                org.junit.jupiter.api.Assertions.assertNotNull(rejected)
+                assertEquals("Viewer", finalRole)
+            }
+        } finally {
+            pool.shutdownNow()
+        }
+    }
 }
