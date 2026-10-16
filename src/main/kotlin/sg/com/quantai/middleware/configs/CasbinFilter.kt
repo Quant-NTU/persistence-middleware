@@ -48,12 +48,12 @@ class CasbinFilter(
         Triple(
             "POST",
             "/users/update-session-duration",
-            "manage_own_profile"
+            "manage_users"
         ),
         Triple(
             "POST",
             "/users/update-session-timeout-status",
-            "manage_own_profile"
+            "manage_users"
         ),
 
         Triple("POST", "/users/enable2FA/**", "manage_own_2fa"),

@@ -371,10 +371,14 @@ fun disable2FA(
         @RequestBody request: UpdateSessionDurationRequest,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
-        val user = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+        val admin = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (!admin.isAdmin) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+
+        val targetUser = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) { null }
             ?: return ResponseEntity.notFound().build()
-        if (user.email != request.email) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        val updated = usersRepository.save(user.copy(
+
+        val updated = usersRepository.save(targetUser.copy(
             sessionDuration = request.sessionDuration, updatedDate = LocalDateTime.now()
         ))
         return ResponseEntity.ok(safeUser(updated))
@@ -385,11 +389,15 @@ fun disable2FA(
         @RequestBody request: NameEmailRequest,
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<Any> {
-        val user = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+        val admin = try { usersRepository.findOneByUid(jwt.subject) } catch (_: Exception) { null }
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (!admin.isAdmin) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+
+        val targetUser = try { usersRepository.findOneByEmail(request.email) } catch (_: Exception) { null }
             ?: return ResponseEntity.notFound().build()
-        if (user.email != request.email) return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        val updated = usersRepository.save(user.copy(
-            hasSessionTimeout = !user.hasSessionTimeout, updatedDate = LocalDateTime.now()
+
+        val updated = usersRepository.save(targetUser.copy(
+            hasSessionTimeout = !targetUser.hasSessionTimeout, updatedDate = LocalDateTime.now()
         ))
         return ResponseEntity.ok(safeUser(updated))
     }
