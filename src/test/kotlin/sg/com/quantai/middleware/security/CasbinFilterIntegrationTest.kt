@@ -564,4 +564,32 @@ class CasbinFilterIntegrationTest(
             pool.shutdownNow()
         }
     }
+
+    @Test
+    fun `trader with view market permission is not denied as unmapped on portfolio market data routes`() {
+        val trader = createUser(role = "Trader")
+
+        val endpoints = listOf(
+            "/portfolios/quotes?symbols=AAPL",
+            "/portfolios/quote/AAPL",
+            "/portfolios/benchmark/SPY",
+            "/portfolios/benchmarks/all"
+        )
+
+        endpoints.forEach { endpoint ->
+            val response = request(
+                HttpMethod.GET,
+                endpoint,
+                trader
+            )
+
+            assertEquals(
+                false,
+                response.statusCode == HttpStatus.FORBIDDEN &&
+                    response.body?.contains("ROUTE_NOT_AUTHORIZED") == true,
+                "$endpoint was rejected as an unmapped route: ${response.body}"
+            )
+        }
+    }
+
 }
