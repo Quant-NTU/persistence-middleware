@@ -188,6 +188,80 @@ class UserControllerTest(
     }
 
     @Test
+    fun `email password reset validates token and prevents reuse`() {
+        val user = saveUser(resetToken = "email-reset-token")
+
+        val invalid = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "NewPassword123!",
+                "resetPasswordToken" to "wrong-token"
+            )
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, invalid.statusCode)
+
+        val valid = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "NewPassword123!",
+                "resetPasswordToken" to "email-reset-token"
+            )
+        )
+        assertEquals(HttpStatus.NO_CONTENT, valid.statusCode)
+
+        val updated = userRepository.findOneByUid(user.uid)
+        assertNull(updated.passwordToken)
+        assertTrue(BCrypt.checkpw("NewPassword123!", updated.password))
+
+        val replay = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "AnotherPassword123!",
+                "resetPasswordToken" to "email-reset-token"
+            )
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, replay.statusCode)
+    }
+
+    @Test
+    fun `email password reset rejects expired token`() {
+        val user = saveUser(
+            resetToken = "expired-email-token",
+            expiresAt = LocalDateTime.now().minusMinutes(1)
+        )
+
+        val response = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "NewPassword123!",
+                "resetPasswordToken" to "expired-email-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `email password reset rejects existing password`() {
+        val user = saveUser(resetToken = "same-password-token")
+
+        val response = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "Password123!",
+                "resetPasswordToken" to "same-password-token"
+            )
+        )
+
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
+    }
+
+    @Test
     fun `expired reset token is rejected`() {
         val user = saveUser(resetToken = "expired", expiresAt = LocalDateTime.now().minusMinutes(1))
         val response = request(

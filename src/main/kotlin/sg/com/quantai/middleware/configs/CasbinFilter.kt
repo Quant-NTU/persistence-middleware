@@ -244,9 +244,12 @@ class CasbinFilter(
             (method == "POST" && uri in publicPaths) ||
             (
                 method == "PUT" &&
-                matcher.match(
-                    "/users/reset-password/{uid}",
-                    uri
+                (
+                    uri == "/users/reset-password-by-email" ||
+                    matcher.match(
+                        "/users/reset-password/{uid}",
+                        uri
+                    )
                 )
             )
         ) {

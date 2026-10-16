@@ -64,7 +64,8 @@ class SecurityConfiguration(
                 // Password reset is authorized by its reset token.
                 it.requestMatchers(
                     HttpMethod.PUT,
-                    "/users/reset-password/*"
+                    "/users/reset-password/*",
+                    "/users/reset-password-by-email"
                 ).permitAll()
 
                 // All other endpoints require authentication.

@@ -298,6 +298,44 @@ fun disable2FA(
         return ResponseEntity.noContent().build()
     }
 
+    // Public password recovery using email and a single-use reset token.
+    @PutMapping("/reset-password-by-email")
+    fun resetPasswordByEmail(
+        @RequestBody request: EmailPasswordResetRequest
+    ): ResponseEntity<Any> {
+        val user = try {
+            usersRepository.findOneByEmail(request.email)
+        } catch (_: Exception) {
+            null
+        } ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+
+        if (!validToken(user.passwordToken, request.resetPasswordToken) ||
+            !validTokenExpiration(user.passwordTokenExpiration)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        }
+
+        if (request.newPassword.isBlank()) {
+            return ResponseEntity.badRequest().build()
+        }
+
+        if (user.password != null &&
+            BCrypt.checkpw(request.newPassword, user.password)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build()
+        }
+
+        val (hashedPassword, salt) = hashAndSaltPassword(request.newPassword)
+
+        usersRepository.save(user.copy(
+            password = hashedPassword,
+            salt = salt,
+            passwordToken = null,
+            passwordTokenExpiration = LocalDateTime.now(),
+            updatedDate = LocalDateTime.now()
+        ))
+
+        return ResponseEntity.noContent().build()
+    }
+
     fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
         val generatedSalt = salt ?: BCrypt.gensalt()
         return Pair(BCrypt.hashpw(plainTextPassword, generatedSalt), generatedSalt)
