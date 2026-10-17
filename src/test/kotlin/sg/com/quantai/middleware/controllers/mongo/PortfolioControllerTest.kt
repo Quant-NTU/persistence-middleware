@@ -175,6 +175,53 @@ class PortfolioControllerTest @Autowired constructor(
         return Pair(hashedPassword, generatedSalt)
     }
 
+
+    // ============================================================
+    // REGRESSION: MULTIPLE HISTORY RECORDS FOR THE SAME ASSET
+    // ============================================================
+
+    @Test
+    fun `should allow multiple portfolio history records for the same asset`() {
+        val portfolio = saveOnePortfolio()
+
+        val crypto = cryptoRepository.save(
+            Crypto(
+                name = "Bitcoin",
+                quantity = BigDecimal.ONE,
+                purchasePrice = BigDecimal("50000"),
+                symbol = "BTC"
+            )
+        )
+
+        val first = portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = crypto,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = BigDecimal.ONE,
+                value = BigDecimal("50000"),
+                portfolio = portfolio
+            )
+        )
+
+        val second = portfolioHistoryRepository.save(
+            PortfolioHistory(
+                asset = crypto,
+                action = PortfolioActionEnum.ADD_MANUAL_ASSET,
+                quantity = BigDecimal.ONE,
+                value = BigDecimal("50000"),
+                portfolio = portfolio
+            )
+        )
+
+        assertNotEquals(first.uid, second.uid)
+        assertEquals(first.asset.uid, second.asset.uid)
+
+        val saved = portfolioHistoryRepository.findAll()
+        assertEquals(2, saved.size)
+        assertEquals(2, saved.map { it.uid }.distinct().size)
+        assertTrue(saved.all { it.asset.uid == crypto.uid })
+    }
+
     // ============================================================
     // TEST 1: VIEW USER PORTFOLIOS
     // ============================================================

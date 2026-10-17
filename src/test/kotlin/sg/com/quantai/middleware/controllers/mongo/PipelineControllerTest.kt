@@ -90,7 +90,7 @@ private fun <T : Any> authenticatedRequest(
             strategyRepository.save(
                 Strategy(
                 title = "Strategy 1",
-                uid = "ID1",
+                uid = org.bson.types.ObjectId.get().toString(),
                 path = "Path1",
                 owner = owner
             )
@@ -98,7 +98,7 @@ private fun <T : Any> authenticatedRequest(
             strategyRepository.save(
                 Strategy(
                 title = "Strategy 2",
-                uid = "ID2",
+                uid = org.bson.types.ObjectId.get().toString(),
                 path = "Path2",
                 owner = owner
             )
