@@ -10,6 +10,7 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.data.mongodb.core.MongoTemplate
@@ -23,6 +24,9 @@ import sg.com.quantai.middleware.repositories.mongo.PortfolioRepository
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
 import sg.com.quantai.middleware.repositories.mongo.AccessRequestRepository
 import java.util.UUID
+import java.nio.ByteBuffer
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CasbinFilterIntegrationTest(
@@ -45,6 +49,8 @@ class CasbinFilterIntegrationTest(
     @BeforeEach
     fun setup() {
         assertDatabaseIsolation()
+        restTemplate.restTemplate.requestFactory =
+            HttpComponentsClientHttpRequestFactory()
     }
 
     private fun createUser(
@@ -591,5 +597,92 @@ class CasbinFilterIntegrationTest(
             )
         }
     }
+
+
+    private fun createTwoFactorUser(): User {
+        assertDatabaseIsolation()
+        val user = createUser()
+        return userRepository.save(
+            user.copy(
+                has2fa = true,
+                secret2FA = "JBSWY3DPEHPK3PXP"
+            )
+        )
+    }
+
+    private fun validTotpCode(): String {
+        val decoded = java.util.Base64.getDecoder().decode("SGVsbG8h3q2+7w==")
+
+        val counter = System.currentTimeMillis() / 1000 / 30
+        val message = ByteBuffer.allocate(8).putLong(counter).array()
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(decoded, "HmacSHA256"))
+        val hash = mac.doFinal(message)
+        val offset = hash.last().toInt() and 0x0F
+
+        val binary =
+            ((hash[offset].toInt() and 0x7F) shl 24) or
+            ((hash[offset + 1].toInt() and 0xFF) shl 16) or
+            ((hash[offset + 2].toInt() and 0xFF) shl 8) or
+            (hash[offset + 3].toInt() and 0xFF)
+
+        return (binary % 1_000_000).toString().padStart(6, '0')
+    }
+
+    @Test
+    fun `disable 2fa rejects invalid code`() {
+        val user = createTwoFactorUser()
+
+        val response = request(
+            HttpMethod.PUT,
+            "/users/disable2FA/${user.uid}",
+            user,
+            mapOf("code" to "invalid")
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+
+        val persisted = userRepository.findOneByUid(user.uid)
+        assertEquals(true, persisted.has2fa)
+        assertEquals("JBSWY3DPEHPK3PXP", persisted.secret2FA)
+    }
+
+    @Test
+    fun `disable 2fa accepts valid code and clears secret`() {
+        val user = createTwoFactorUser()
+
+        val response = request(
+            HttpMethod.PUT,
+            "/users/disable2FA/${user.uid}",
+            user,
+            mapOf("code" to validTotpCode())
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+
+        val persisted = userRepository.findOneByUid(user.uid)
+        assertEquals(false, persisted.has2fa)
+        assertEquals(null, persisted.secret2FA)
+    }
+
+    @Test
+    fun `disable 2fa rejects another account owner`() {
+        val user = createTwoFactorUser()
+        val other = createUser()
+
+        val response = request(
+            HttpMethod.PUT,
+            "/users/disable2FA/${user.uid}",
+            other,
+            mapOf("code" to "000000")
+        )
+
+        assertEquals(HttpStatus.FORBIDDEN, response.statusCode)
+
+        val persisted = userRepository.findOneByUid(user.uid)
+        assertEquals(true, persisted.has2fa)
+        assertEquals("JBSWY3DPEHPK3PXP", persisted.secret2FA)
+    }
+
 
 }

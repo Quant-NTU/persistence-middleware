@@ -6,7 +6,11 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mindrot.jbcrypt.BCrypt
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -15,6 +19,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
 import sg.com.quantai.middleware.configs.JwtService
 import sg.com.quantai.middleware.data.mongo.User
 import sg.com.quantai.middleware.repositories.mongo.UserRepository
@@ -36,6 +41,9 @@ class UserControllerTest(
     @Autowired private val jwtService: JwtService,
     @LocalServerPort private val port: Int
 ) {
+    @MockBean
+    lateinit var emailService: EmailServiceImpl
+
     private fun url(path: String = "") = "http://localhost:$port/users$path"
 
     @BeforeEach
@@ -224,6 +232,173 @@ class UserControllerTest(
             )
         )
         assertEquals(HttpStatus.UNAUTHORIZED, replay.statusCode)
+    }
+
+
+    @Test
+    fun `email reset token cannot reset another user password`() {
+        val userA = saveUser(
+            email = "user-a@example.test",
+            resetToken = "user-a-reset-token"
+        )
+        val userB = saveUser(
+            email = "user-b@example.test",
+            resetToken = "user-b-reset-token"
+        )
+
+        val response = request(
+            HttpMethod.PUT,
+            "/reset-password-by-email",
+            null,
+            mapOf(
+                "email" to userB.email,
+                "newPassword" to "UnauthorizedPassword123!",
+                "resetPasswordToken" to "user-a-reset-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+
+        val unchangedA = userRepository.findOneByUid(userA.uid)
+        val unchangedB = userRepository.findOneByUid(userB.uid)
+
+        assertTrue(BCrypt.checkpw("Password123!", unchangedA.password))
+        assertTrue(BCrypt.checkpw("Password123!", unchangedB.password))
+        assertEquals("user-a-reset-token", unchangedA.passwordToken)
+        assertEquals("user-b-reset-token", unchangedB.passwordToken)
+    }
+
+
+    @Test
+    fun `generate token saves expiring token and sends reset email`() {
+        val user = saveUser(email = "reset-request@example.test")
+        val before = LocalDateTime.now()
+
+        val response = request(
+            HttpMethod.POST,
+            "/generate-token",
+            null,
+            mapOf("name" to user.name, "email" to user.email)
+        )
+
+        val after = LocalDateTime.now()
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+
+        val updated = userRepository.findOneByUid(user.uid)
+        assertNotNull(updated.passwordToken)
+        assertTrue(updated.passwordToken!!.isNotBlank())
+        assertTrue(updated.passwordTokenExpiration!!.isAfter(before.plusMinutes(59)))
+        assertTrue(updated.passwordTokenExpiration!!.isBefore(after.plusHours(1).plusMinutes(1)))
+
+        verify(emailService).sendResetPasswordEmail(
+            user.name,
+            user.email,
+            updated.passwordToken
+        )
+    }
+
+    @Test
+    fun `generate token does not reveal nonexistent accounts`() {
+        val response = request(
+            HttpMethod.POST,
+            "/generate-token",
+            null,
+            mapOf(
+                "name" to "Unknown User",
+                "email" to "unknown-account@example.test"
+            )
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertTrue(
+            response.body.orEmpty().contains(
+                "If the account exists"
+            )
+        )
+
+        verify(emailService, never()).sendResetPasswordEmail(
+            anyString(),
+            anyString(),
+            anyString()
+        )
+    }
+
+
+    @Test
+    fun `authenticate token accepts valid token`() {
+        val user = saveUser(resetToken = "valid-auth-token")
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to user.email,
+                "resetPasswordToken" to "valid-auth-token"
+            )
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertTrue(
+            com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
+                .readTree(response.body)
+                .path("valid")
+                .asBoolean()
+        )
+    }
+
+    @Test
+    fun `authenticate token rejects invalid token`() {
+        val user = saveUser(resetToken = "correct-auth-token")
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to user.email,
+                "resetPasswordToken" to "wrong-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `authenticate token rejects expired token`() {
+        val user = saveUser(
+            resetToken = "expired-auth-token",
+            expiresAt = LocalDateTime.now().minusMinutes(1)
+        )
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to user.email,
+                "resetPasswordToken" to "expired-auth-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `authenticate token rejects another users token`() {
+        saveUser(
+            email = "auth-user-a@example.test",
+            resetToken = "auth-user-a-token"
+        )
+        val userB = saveUser(
+            email = "auth-user-b@example.test",
+            resetToken = "auth-user-b-token"
+        )
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to userB.email,
+                "resetPasswordToken" to "auth-user-a-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
     }
 
     @Test
