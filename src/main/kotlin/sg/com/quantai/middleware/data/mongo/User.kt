@@ -24,6 +24,7 @@ data class User (
     val isRegistered: Boolean = false,
     val isGoogleLogin: Boolean = false,
     val isAdmin: Boolean = false,
+    val role: String = "Viewer",
     val has2fa: Boolean = false,
     val secret2FA: String? = null,
     val lastLogin: LocalDateTime? = null,
