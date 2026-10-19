@@ -9,6 +9,9 @@ import org.springframework.dao.EmptyResultDataAccessException
 import sg.com.quantai.middleware.data.mongo.*
 
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import sg.com.quantai.middleware.data.mongo.enums.AssetType
+import sg.com.quantai.middleware.data.mongo.enums.OrderSide
+import sg.com.quantai.middleware.services.PortfolioBookingService
 import sg.com.quantai.middleware.repositories.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
 import sg.com.quantai.middleware.requests.assets.CryptoRequest
@@ -25,7 +28,8 @@ class PortfolioController(
     private val cryptoRepository: CryptoRepository,
     private val stockRepository: StockRepository,
     private val forexRepository: ForexRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val bookingService: PortfolioBookingService,
 ) {
 
     private val logger: Logger = LoggerFactory.getLogger(PortfolioController::class.java)
@@ -474,72 +478,22 @@ class PortfolioController(
         @PathVariable("portfolio_id") portfolioId: String,
         @RequestBody request: BuyAssetRequest
     ): ResponseEntity<Any> {
-        val user = userRepository.findOneByUid(userId)
-        val portfolio = portfolioRepository.findOneByUid(portfolioId)
-
-        val asset: Asset = when (request.assetType.lowercase()) {
-            "stock" -> {
-                if (!stockRepository.existsByName(request.name)) {
-                    stockRepository.save(
-                        Stock(
-                            name = request.name,
-                            quantity = request.quantity,
-                            purchasePrice = request.pricePerUnit,
-                            ticker = request.symbol
-                        )
-                    )
-                }
-                stockRepository.findByName(request.name)
-            }
-            "crypto" -> {
-                if (!cryptoRepository.existsByName(request.name)) {
-                    cryptoRepository.save(
-                        Crypto(
-                            name = request.name,
-                            quantity = request.quantity,
-                            purchasePrice = request.pricePerUnit,
-                            symbol = request.symbol
-                        )
-                    )
-                }
-                cryptoRepository.findByName(request.name)
-            }
-            "forex" -> {
-                if (!forexRepository.existsByName(request.name)) {
-                    forexRepository.save(
-                        Forex(
-                            name = request.name,
-                            quantity = request.quantity,
-                            purchasePrice = request.pricePerUnit,
-                            currencyPair = request.symbol
-                        )
-                    )
-                }
-                forexRepository.findByName(request.name)
-            }
+        val assetType = when (request.assetType.lowercase()) {
+            "stock" -> AssetType.STOCK
+            "crypto" -> AssetType.CRYPTO
+            "forex" -> AssetType.FOREX
             else -> return ResponseEntity.badRequest().body("Invalid asset type: ${request.assetType}")
         }
 
-        // Calculate total cost
-        val totalCost = request.quantity * request.pricePerUnit
-
-        // Create buy history entry
-        portfolioHistoryRepository.save(
-            PortfolioHistory(
-                asset = asset,
-                action = PortfolioActionEnum.BUY_REAL_ASSET,
-                quantity = request.quantity,
-                value = totalCost,
-                portfolio = portfolio,
-            )
-        )
-
-        // Update portfolio cash balance (deduct cost)
-        val updatedPortfolio = portfolioRepository.save(
-            portfolio.copy(
-                cashBalance = portfolio.cashBalance - totalCost,
-                updatedDate = LocalDateTime.now()
-            )
+        val updatedPortfolio = bookingService.bookTrade(
+            userId = userId,
+            portfolioId = portfolioId,
+            assetType = assetType,
+            name = request.name,
+            symbol = request.symbol,
+            side = OrderSide.BUY,
+            quantity = request.quantity,
+            price = request.pricePerUnit,
         )
 
         return ResponseEntity.ok().body(mapOf(
@@ -562,42 +516,40 @@ class PortfolioController(
         @PathVariable("portfolio_id") portfolioId: String,
         @RequestBody request: SellAssetRequest
     ): ResponseEntity<Any> {
-        val user = userRepository.findOneByUid(userId)
-        val portfolio = portfolioRepository.findOneByUid(portfolioId)
+        val assetType = when (request.assetType.lowercase()) {
+            "stock" -> AssetType.STOCK
+            "crypto" -> AssetType.CRYPTO
+            "forex" -> AssetType.FOREX
+            else -> return ResponseEntity.badRequest().body("Invalid asset type: ${request.assetType}")
+        }
 
-        // Find the asset - it must exist
-        val asset: Asset = try {
-            when (request.assetType.lowercase()) {
-                "stock" -> stockRepository.findByName(request.name)
-                "crypto" -> cryptoRepository.findByName(request.name)
-                "forex" -> forexRepository.findByName(request.name)
-                else -> return ResponseEntity.badRequest().body("Invalid asset type: ${request.assetType}")
+        // The asset must already exist in order to sell it.
+        val existing = try {
+            when (assetType) {
+                AssetType.STOCK -> stockRepository.findByName(request.name)
+                AssetType.CRYPTO -> cryptoRepository.findByName(request.name)
+                AssetType.FOREX -> forexRepository.findByName(request.name)
             }
         } catch (e: Exception) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body("Asset '${request.name}' not found. You can only sell assets you own.")
         }
 
-        // Calculate total proceeds
-        val totalProceeds = request.quantity * request.pricePerUnit
+        val symbol = when (assetType) {
+            AssetType.STOCK -> (existing as? Stock)?.ticker ?: request.name
+            AssetType.CRYPTO -> (existing as? Crypto)?.symbol ?: request.name
+            AssetType.FOREX -> (existing as? Forex)?.currencyPair ?: request.name
+        }
 
-        // Create a SELL history entry with NEGATIVE quantity (so aggregation logic works correctly)
-        portfolioHistoryRepository.save(
-            PortfolioHistory(
-                asset = asset,
-                action = PortfolioActionEnum.SELL_REAL_ASSET,
-                quantity = -request.quantity,  // Negative for sells
-                value = totalProceeds,
-                portfolio = portfolio,
-            )
-        )
-
-        // Update portfolio cash balance (add proceeds)
-        val updatedPortfolio = portfolioRepository.save(
-            portfolio.copy(
-                cashBalance = portfolio.cashBalance + totalProceeds,
-                updatedDate = LocalDateTime.now()
-            )
+        val updatedPortfolio = bookingService.bookTrade(
+            userId = userId,
+            portfolioId = portfolioId,
+            assetType = assetType,
+            name = request.name,
+            symbol = symbol,
+            side = OrderSide.SELL,
+            quantity = request.quantity,
+            price = request.pricePerUnit,
         )
 
         return ResponseEntity.ok().body(mapOf(
