@@ -2,11 +2,13 @@ package sg.com.quantai.middleware.data.mongo
 
 import org.bson.types.ObjectId
 import org.springframework.data.annotation.TypeAlias
+import org.springframework.data.mongodb.core.index.CompoundIndex
 import org.springframework.data.mongodb.core.mapping.Document
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
 @Document(collection = "cryptos")
+@CompoundIndex(name = "uid", def = "{ 'uid': 1 }", unique = true)
 @TypeAlias("crypto")
 class Crypto(
     name: String?,
