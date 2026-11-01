@@ -47,6 +47,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
@@ -57,16 +58,17 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.1")
     implementation("org.mindrot:jbcrypt:0.4")
-    implementation("javax.mail:mail:1.4.7")
     implementation("org.zeromq:jeromq:0.5.0")
     implementation("io.springfox:springfox-swagger2:2.7.0")
     implementation("io.springfox:springfox-swagger-ui:2.7.0")
     implementation("org.postgresql:postgresql")
     implementation("javax.persistence:javax.persistence-api:2.2")
-
+    implementation("org.casbin:jcasbin:1.55.0") {
+    exclude group: "commons-logging", module: "commons-logging"}
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.apache.httpcomponents.client5:httpclient5")
     testImplementation("org.mockito:mockito-core:5.5.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
@@ -75,10 +77,24 @@ dependencies {
 
 }
 
+
 test {
     useJUnitPlatform()
 
-    finalizedBy check
+    // Isolated MongoDB database for automated tests
+    systemProperty "spring.profiles.active", "rbac-test"
+    systemProperty "spring.data.mongodb.database", "quantai_rbac_automated_test"
+
+    doFirst {
+        def database = systemProperties["spring.data.mongodb.database"]
+
+        if (database != "quantai_rbac_automated_test") {
+            throw new GradleException(
+                "Unsafe test database: ${database}"
+            )
+        }
+    }
+
     testLogging {
         events "PASSED", "FAILED", "SKIPPED"
     }

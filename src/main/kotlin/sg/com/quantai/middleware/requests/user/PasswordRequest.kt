@@ -1,5 +1,6 @@
 package sg.com.quantai.middleware.requests.user
 
-class PasswordRequest(
+data class PasswordRequest(
     val newPassword: String,
+    val resetPasswordToken: String
 )

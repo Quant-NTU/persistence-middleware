@@ -190,7 +190,9 @@
             verify(mockRequestBodyUriSpec).uri("http://quant-ai-persistence-etl:10070/crypto/transform")
 
             // Verify log info called for success message
-            verify(mockLogger).info("✅ Successfully preloaded crypto data for symbols: [BTC, ETH]")
+            verify(mockLogger).info("Preloaded crypto {}: {}", "BTC", "success")
+        verify(mockLogger).info("Preloaded crypto {}: {}", "ETH", "success")
+        verify(mockLogger).info("Crypto transform completed: {}", "success")
         }
 
         @Test
@@ -235,7 +237,9 @@
             )
 
             // Verify final success log
-            verify(mockLogger).info("✅ Successfully preloaded stock data for symbols: [AAPL, MSFT]")
+            verify(mockLogger).info("Preloaded stock {}: {}", "AAPL", "success")
+        verify(mockLogger).info("Preloaded stock {}: {}", "MSFT", "success")
+        verify(mockLogger).info("Stock transform completed: {}", "success")
         }
 
         @Test
@@ -288,7 +292,9 @@
             )
 
             // Verify final success log
-            verify(mockLogger).info("✅ Successfully preloaded forex data for pairs: $forexPairs")
+            verify(mockLogger).info("Preloaded forex {}: {}", "USD/GBP", "success")
+        verify(mockLogger).info("Preloaded forex {}: {}", "GBP/USD", "success")
+        verify(mockLogger).info("Forex transform completed: {}", "success")
         }
 
         @Test

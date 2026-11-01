@@ -1,494 +1,448 @@
 package sg.com.quantai.middleware.controllers.mongo
 
-import sg.com.quantai.middleware.data.mongo.User
-import sg.com.quantai.middleware.repositories.mongo.UserRepository
-import org.bson.types.ObjectId
+import org.springframework.data.mongodb.core.MongoTemplate
+
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.extension.ExtendWith
+import org.mindrot.jbcrypt.BCrypt
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.boot.test.web.server.LocalServerPort
-import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.test.context.junit.jupiter.SpringExtension
-import org.mindrot.jbcrypt.BCrypt
-import org.springframework.context.ApplicationContext
-import sg.com.quantai.middleware.requests.user.*
-
+import sg.com.quantai.middleware.mailsender.config.EmailServiceImpl
+import sg.com.quantai.middleware.configs.JwtService
+import sg.com.quantai.middleware.data.mongo.User
+import sg.com.quantai.middleware.repositories.mongo.UserRepository
+import sg.com.quantai.middleware.requests.user.LoginRequest
+import sg.com.quantai.middleware.requests.user.NameEmailRequest
+import sg.com.quantai.middleware.requests.user.PasswordRequest
+import sg.com.quantai.middleware.requests.user.UserRequest
 import java.time.LocalDateTime
 
+/**
+ * WARNING: These integration tests delete all records in the configured users collection.
+ * Run ONLY against a disposable test database, never development/production data.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ExtendWith(SpringExtension::class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UserControllerTest(
-    @Autowired val userRepository: UserRepository,
-    @Autowired val restTemplate: TestRestTemplate,
-    @Autowired val context: ApplicationContext,
-    @LocalServerPort val port: Int
+    @Autowired private val mongoTemplate: MongoTemplate,
+    @Autowired private val userRepository: UserRepository,
+    @Autowired private val restTemplate: TestRestTemplate,
+    @Autowired private val jwtService: JwtService,
+    @LocalServerPort private val port: Int
 ) {
+    @MockBean
+    lateinit var emailService: EmailServiceImpl
 
-
-    private val defaultUserId = ObjectId.get()
-    private val defaultToken = "aaa111bbb222ccc333"
-
+    private fun url(path: String = "") = "http://localhost:$port/users$path"
 
     @BeforeEach
-    fun setUp() {
+    fun setup() {
+        check(mongoTemplate.db.name == "quantai_rbac_automated_test") {
+            "REFUSING destructive cleanup: unsafe MongoDB database ${mongoTemplate.db.name}"
+        }
+
+        // IMPORTANT: configure an isolated test MongoDB before running this test suite.
         userRepository.deleteAll()
     }
 
-    private fun getRootUrl(): String = "http://localhost:$port/users"
-    private fun saveOneUser(
-        name: String ="Name",
-        email: String ="Email",
-        password: String ="Password",
-        salt: String ?=null,
-        passwordToken: String =defaultToken,
-        passwordTokenExpiration: LocalDateTime =LocalDateTime.now().plusHours(1),
-        isAdmin: Boolean =false,
-        has2fa: Boolean =false,
-        secret2FA: String ="",
-        id: ObjectId = ObjectId.get()
+    private fun saveUser(
+        email: String = "user@example.test",
+        password: String = "Password123!",
+        role: String = "Viewer",
+        admin: Boolean = false,
+        resetToken: String? = null,
+        expiresAt: LocalDateTime = LocalDateTime.now().plusHours(1)
     ): User {
-        val (hashedPassword, salt) = hashAndSaltPassword(password, salt)
+        val salt = BCrypt.gensalt()
         return userRepository.save(
             User(
-                                name=name,
-                                email=email,
-                                password=hashedPassword,
-                                salt=salt,
-                                passwordToken=passwordToken,
-                                passwordTokenExpiration=passwordTokenExpiration,
-                                isAdmin=isAdmin,
-                                has2fa = has2fa,
-                                secret2FA = secret2FA,
-                                uid=id.toString())
+                name = "Test User", email = email,
+                password = BCrypt.hashpw(password, salt), salt = salt,
+                isRegistered = true, role = role, isAdmin = admin,
+                passwordToken = resetToken, passwordTokenExpiration = expiresAt
+            )
         )
     }
-    private fun prepareUserRequest() = UserRequest("UpdatedName", "UpdatedEmail", "UpdatedPassword")
-    private fun hashAndSaltPassword(plainTextPassword: String, salt: String? = null): Pair<String, String> {
 
-        val generatedSalt = salt ?: BCrypt.gensalt()
-        val hashedPassword = BCrypt.hashpw(plainTextPassword, generatedSalt)
-    
-        return Pair(hashedPassword, generatedSalt)
+    private fun headers(user: User): HttpHeaders = HttpHeaders().apply {
+        setBearerAuth(jwtService.generateToken(user.uid))
+    }
+
+    private fun request(
+        method: HttpMethod,
+        path: String,
+        user: User?,
+        body: Any? = null
+    ): ResponseEntity<String> = restTemplate.exchange(
+        url(path), method,
+        HttpEntity(body, if (user == null) HttpHeaders() else headers(user)),
+        String::class.java
+    )
+
+    @Test
+    fun `registration creates a Viewer without leaking password hash`() {
+        val response = restTemplate.postForEntity(
+            url(), UserRequest("New User", "new@example.test", "Password123!"), String::class.java
+        )
+        assertEquals(HttpStatus.CREATED, response.statusCode)
+        assertTrue(response.body.orEmpty().contains("new@example.test"))
+        assertFalse(response.body.orEmpty().contains("Password123!"))
+        assertFalse(response.body.orEmpty().contains("\"salt\""))
+        assertEquals("Viewer", userRepository.findOneByEmail("new@example.test").role)
     }
 
     @Test
-    fun `should print all loaded beans`() {
-        println("Loaded Beans:")
-        context.beanDefinitionNames.sorted().forEach { println(it) }
-
-        // Check if UserController is present
-        assertTrue(context.containsBean("userController"))
+    fun `login returns access token and nested user`() {
+        saveUser()
+        val response = restTemplate.postForEntity(
+            url("/signin"), LoginRequest("user@example.test", "Password123!"), String::class.java
+        )
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertTrue(response.body.orEmpty().contains("\"accessToken\""))
+        assertTrue(response.body.orEmpty().contains("\"user\""))
+        assertFalse(response.body.orEmpty().contains("\"salt\""))
     }
 
     @Test
-    fun `should return all users`() {
-        // No users
-        var response = restTemplate.getForEntity(getRootUrl(), List::class.java)
-        println("Response Body: {$response.body}")
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(0, response.body?.size)
-
-        // 1 user
-        saveOneUser("Name2", "Email2", "Password2")
-        response = restTemplate.getForEntity(getRootUrl(), List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(1, response.body?.size)
-
-        // 2 users
-        saveOneUser("Name3", "Email3", "Password3")
-        response = restTemplate.getForEntity(getRootUrl(), List::class.java)
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(2, response.body?.size)
+    fun `login rejects wrong password`() {
+        saveUser()
+        val response = restTemplate.postForEntity(
+            url("/signin"), LoginRequest("user@example.test", "wrong"), String::class.java
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
     }
 
     @Test
-    fun `should return single user by id`() {
-        saveOneUser(id=defaultUserId)
-
-        val response = restTemplate.getForEntity(getRootUrl() + "/$defaultUserId", User::class.java)
-
-        assertEquals(200, response.statusCode.value())
-        assertNotNull(response.body)
-        assertEquals(defaultUserId.toString(), response.body?.uid)
-    }
-
-    // delete User
-    @Test
-    fun `should delete existing user`() {
-        saveOneUser()
-
-        val delete =
-                restTemplate.exchange(
-                        getRootUrl() + "/$defaultUserId",
-                        HttpMethod.DELETE,
-                        HttpEntity(null, HttpHeaders()),
-                        ResponseEntity::class.java
-                )
-
-
-        assertEquals(204, delete.statusCode.value())
-        assertThrows(EmptyResultDataAccessException::class.java) {
-            userRepository.findOneByUid(defaultUserId.toString())
-        }
-
-    }
-
-    // update operation
-    @Test
-    fun `should update existing user`() {
-        saveOneUser(id=defaultUserId)
-        val userRequest = prepareUserRequest()
-
-
-        val updateResponse =
-                restTemplate.exchange(
-                        getRootUrl() + "/$defaultUserId",
-                        HttpMethod.PUT,
-                        HttpEntity(userRequest, HttpHeaders()),
-                        User::class.java
-                )
-        val updatedUser = userRepository.findOneByUid(defaultUserId.toString())
-
-        assertEquals(200, updateResponse.statusCode.value())
-        assertEquals(defaultUserId.toString(), updatedUser.uid)
-        assertEquals(userRequest.email, updatedUser.email)
+    fun `profile requires JWT and enforces ownership`() {
+        val alice = saveUser(email = "alice@example.test")
+        val bob = saveUser(email = "bob@example.test")
+        assertEquals(HttpStatus.UNAUTHORIZED, request(HttpMethod.GET, "/${alice.uid}", null).statusCode)
+        assertEquals(HttpStatus.OK, request(HttpMethod.GET, "/${alice.uid}", alice).statusCode)
+        assertEquals(HttpStatus.FORBIDDEN, request(HttpMethod.GET, "/${bob.uid}", alice).statusCode)
+        assertEquals(
+            HttpStatus.FORBIDDEN,
+            request(HttpMethod.PUT, "/${bob.uid}", alice, NameEmailRequest("Changed", "bob@example.test")).statusCode
+        )
+        val updated = request(
+            HttpMethod.PUT, "/${alice.uid}", alice,
+            NameEmailRequest("Alice Updated", "alice@example.test")
+        )
+        assertEquals(HttpStatus.OK, updated.statusCode)
+        assertEquals("Alice Updated", userRepository.findOneByUid(alice.uid).name)
+        assertFalse(updated.body.orEmpty().contains("\"password\""))
     }
 
     @Test
-    fun `should create new user`() {
-        val userRequest = prepareUserRequest()
+    fun `demoted admin loses audit permission with existing JWT`() {
+        val admin = saveUser(email = "admin@example.test", role = "Admin", admin = true)
+        val target = saveUser(email = "target@example.test", role = "Admin", admin = true)
+        // Token minted BEFORE demotion.
+        val oldToken = jwtService.generateToken(target.uid)
+        val demoteHeaders = headers(admin)
+        val demotion = restTemplate.exchange(
+            url("/admin/${target.email}"), HttpMethod.DELETE,
+            HttpEntity(mapOf("requesterUid" to admin.uid), demoteHeaders), String::class.java
+        )
+        assertEquals(HttpStatus.OK, demotion.statusCode)
+        val demoted = userRepository.findOneByUid(target.uid)
+        assertFalse(demoted.isAdmin)
+        assertEquals("Viewer", demoted.role)
 
-        val response = restTemplate.postForEntity(getRootUrl(), userRequest, User::class.java)
-
-        assertEquals(201, response.statusCode.value())
-        assertNotNull(response.body)
-        assertNotNull(response.body?.uid)
-        assertEquals(userRequest.email, response.body?.email)
+        val oldHeaders = HttpHeaders().apply { setBearerAuth(oldToken) }
+        val oldJwtResponse = restTemplate.exchange(
+            "http://localhost:$port/audit-logs", HttpMethod.GET,
+            HttpEntity<Any>(null, oldHeaders), String::class.java
+        )
+        assertEquals(HttpStatus.FORBIDDEN, oldJwtResponse.statusCode)
+        val freshJwtResponse = restTemplate.exchange(
+            "http://localhost:$port/audit-logs", HttpMethod.GET,
+            HttpEntity<Any>(null, headers(demoted)), String::class.java
+        )
+        assertEquals(HttpStatus.FORBIDDEN, freshJwtResponse.statusCode)
     }
 
-    // TODO: How to test the login? Maybe we should change the function name to "CheckUser"
-    // something like that
     @Test
-    fun `should check with a login-password pair exists`() {
-        // Following the UserController.login control flow, we should have 3 assertions here:
-        saveOneUser()
-
-        var loginRequest1 = LoginRequest("Email", "Password")
-        val loginRequest2 = LoginRequest("Email", "Password2")
-        val loginRequest3 = LoginRequest("NoEmail", "Password")
-
-        val response1 =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/signin",
-                        loginRequest1,
-                        User::class.java
-                )
-        // 1: Happy Path: When user.name and user.password match -> tests users and HTTP Status Code
-        // 200
-        assertEquals(200, response1.statusCode.value())
-        assertNotNull(response1.body)
-        assertNotNull(response1.body?.uid)
-        assertEquals(loginRequest1.email, response1.body?.email)
-
-        // 2: Exception Path 1: When user.name and user.password doesn't match -> HTTP Status Code
-        // 401
-        val response2 =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/signin",
-                        loginRequest2,
-                        User::class.java
-                )
-
-        assertEquals(401, response2.statusCode.value())
-        assertNull(response2.body)
-
-        // 3: Exception Path 2: When user doesn't exist -> HTTP Status Code 401
-        val response3 =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/signin",
-                        loginRequest3,
-                        User::class.java
-                )
-
-        assertEquals(401, response3.statusCode.value())
-        assertNull(response3.body)
+    fun `reset password requires valid unexpired token and prevents reuse`() {
+        val user = saveUser(resetToken = "valid-reset-token")
+        val bad = request(
+            HttpMethod.PUT, "/reset-password/${user.uid}", null,
+            PasswordRequest("NewPassword123!", "wrong-token")
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, bad.statusCode)
+        val good = request(
+            HttpMethod.PUT, "/reset-password/${user.uid}", null,
+            PasswordRequest("NewPassword123!", "valid-reset-token")
+        )
+        assertEquals(HttpStatus.NO_CONTENT, good.statusCode)
+        val updated = userRepository.findOneByUid(user.uid)
+        assertNull(updated.passwordToken)
+        assertTrue(BCrypt.checkpw("NewPassword123!", updated.password))
+        val replay = request(
+            HttpMethod.PUT, "/reset-password/${user.uid}", null,
+            PasswordRequest("AnotherPassword123!", "valid-reset-token")
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, replay.statusCode)
     }
 
-    // TODO: This test will be used in the functionality about reseting password
     @Test
-    fun `should return password reset token`() {
-        // Following the UserController.resetPassword control flow
-        saveOneUser()
-        //var savedId = saveOneUser(id=ObjectId.get()).uid
-        // 1: Happy Path: User password token is valid, expiration date is valid
-        // -> must validate that the password was updated
-        var authenticationRequest = AuthenticationRequest("Email", defaultToken)
-        var response =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/authenticate-token",
-                        authenticationRequest,
-                        User::class.java
-                )
+    fun `email password reset validates token and prevents reuse`() {
+        val user = saveUser(resetToken = "email-reset-token")
 
-        assertEquals(200, response.statusCode.value())
-        assertEquals(defaultToken, response.body?.passwordToken)
-        if (response.body?.passwordTokenExpiration != null) {
-            assertTrue(LocalDateTime.now().isBefore(response.body?.passwordTokenExpiration))
-        }
+        val invalid = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "NewPassword123!",
+                "resetPasswordToken" to "wrong-token"
+            )
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, invalid.statusCode)
 
-        userRepository.deleteAll()
-        saveOneUser(passwordTokenExpiration = LocalDateTime.now().plusHours(-1))
-        //savedId = saveOneUser(id=ObjectId.get(), passwordTokenExpiration = LocalDateTime.now().plusHours(-1)).uid
-        // 2: Exception Path 1: User password token is valid, but the expiration date is invalid ->
-        // must validate that the password wasn't changed and an error message was update
-        authenticationRequest = AuthenticationRequest("Email", defaultToken)
-        response =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/authenticate-token",
-                        authenticationRequest,
-                        User::class.java
-                )
+        val valid = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "NewPassword123!",
+                "resetPasswordToken" to "email-reset-token"
+            )
+        )
+        assertEquals(HttpStatus.NO_CONTENT, valid.statusCode)
 
-        assertEquals(401, response.statusCode.value())
-        assertNull(response.body)
+        val updated = userRepository.findOneByUid(user.uid)
+        assertNull(updated.passwordToken)
+        assertTrue(BCrypt.checkpw("NewPassword123!", updated.password))
 
-        userRepository.deleteAll()
-        saveOneUser()
-        //savedId = saveOneUser(id = ObjectId.get()).uid
-        // 3: Exception Path 2: User password token is invalid, but the expiration date is valid ->
-        // must validate that the password wasn't changed and an error message was update
-        authenticationRequest = AuthenticationRequest("Email", "111aaa")
-        response =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/authenticate-token",
-                        authenticationRequest,
-                        User::class.java
-                )
-        assertEquals(401, response.statusCode.value())
-        assertNull(response.body)
-
-        userRepository.deleteAll()
-        saveOneUser(passwordTokenExpiration = LocalDateTime.now().plusHours(-1))
-        //savedId = saveOneUser(id=ObjectId.get(), passwordTokenExpiration = LocalDateTime.now().plusHours(-1)).uid
-        // 4: Exception Path 3: Neither password token nor expiration date are valid -> must
-        // validate that the password wasn't changed and an error message was update
-        authenticationRequest = AuthenticationRequest("Email", "111aaa")
-        response =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/authenticate-token",
-                        authenticationRequest,
-                        User::class.java
-                )
-        assertEquals(401, response.statusCode.value())
-        assertNull(response.body)
+        val replay = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "AnotherPassword123!",
+                "resetPasswordToken" to "email-reset-token"
+            )
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, replay.statusCode)
     }
 
-    // TODO: This test updates the user password
+
     @Test
-    fun `should update user password`() {
-        // Same as the test `should return password reset token` -> Maybe there should be some
-        // assertions that are valid here and not there
-        var savedId = saveOneUser().uid
-
-        // 1: Happy Path: User password token is valid, expiration date is valid
-        var passwordRequest = PasswordRequest("Password3")
-        var response =
-                restTemplate.exchange(
-                        getRootUrl() + "/reset-password/$savedId",
-                        HttpMethod.PUT,
-                        HttpEntity(passwordRequest, HttpHeaders()),
-                        User::class.java
-                )
-
-
-        assertEquals(200, response.statusCode.value())
-        val(password, _) = hashAndSaltPassword("Password3", response.body?.salt)
-        assertEquals(password, response.body?.password)
-
-        userRepository.deleteAll()
-        savedId = saveOneUser().uid
-        //savedId = saveOneUser(id=ObjectId.get()).uid
-        // 2: Exception Path 1: Password is invalid. Validate that the password wasn't changed
-        passwordRequest = PasswordRequest("Password")
-        response =
-        restTemplate.exchange(
-                getRootUrl() + "/reset-password/$savedId",
-                HttpMethod.PUT,
-                HttpEntity(passwordRequest, HttpHeaders()),
-                User::class.java
+    fun `email reset token cannot reset another user password`() {
+        val userA = saveUser(
+            email = "user-a@example.test",
+            resetToken = "user-a-reset-token"
+        )
+        val userB = saveUser(
+            email = "user-b@example.test",
+            resetToken = "user-b-reset-token"
         )
 
-        assertEquals(304, response.statusCode.value())
-        assertNull(response.body)
-    }
-
-    //tests if identical user passwords generate separate hashes
-    @Test
-    fun `same password different hash`() {
-        userRepository.deleteAll()
-
-        val user1Id = saveOneUser("Name123", "Email123", "Password123").uid
-        val user2Id = saveOneUser("Name223", "Email223", "Password123").uid
-
-        val response1 = restTemplate.getForEntity(getRootUrl() + "/$user1Id", User::class.java)
-        val response2 = restTemplate.getForEntity(getRootUrl() + "/$user2Id", User::class.java)
-
-        assertEquals(200, response1.statusCode.value())
-        assertEquals(200, response2.statusCode.value())
-        assertNotNull(response1.body)
-        assertNotNull(response2.body)
-        assertNotEquals(response1.body?.password, response2.body?.password)
-    }
-
-    @Test
-    fun `google oauth login for new user`() {
-        userRepository.deleteAll()
-
-        val newOAuthRequest = NameEmailRequest("NameOAuth", "EmailOAuth")
-
-        val responseNewOAuthUser =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/login/oauth2/google",
-                        newOAuthRequest,
-                        User::class.java
-                )
-
-        assertEquals(200, responseNewOAuthUser.statusCode.value())
-        assertNotNull(responseNewOAuthUser.body)
-        assertEquals(newOAuthRequest.email, responseNewOAuthUser.body?.email)
-    }
-
-    @Test
-    fun `register for existing google user`() {
-        userRepository.deleteAll()
-
-        val newOAuthRequest = NameEmailRequest("NameOAuth", "EmailOAuth")
-
-        val responseNewOAuthUser =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/login/oauth2/google",
-                        newOAuthRequest,
-                        User::class.java
-                )
-
-        val newRegisterRequest = UserRequest("NameOAuth", "EmailOAuth", "Password")
-
-        val responseRegisterExistingGoogleUser =
-                restTemplate.postForEntity(
-                        getRootUrl(),
-                        newRegisterRequest,
-                        User::class.java
-                )
-        
-        assertEquals(202, responseRegisterExistingGoogleUser.statusCode.value())
-
-        val oAuthConfirmationRequest = GoogleConfirmationRequest("EmailOAuth", "EmailOAuth", "NameOAuth", "PasswordOAuth", "SaltOAuth")
-        val responseGoogleConfirmation =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/google-confirmation",
-                        oAuthConfirmationRequest,
-                        User::class.java
-                )
-
-        assertEquals(200, responseGoogleConfirmation.statusCode.value())
-        assertNotNull(responseGoogleConfirmation.body)
-        assertNotNull(responseGoogleConfirmation.body?.password)
-//        assertTrue(responseGoogleConfirmation.body.isRegistered)
-    }
-
-    @Test
-    fun `google oauth login for existing registered user`() {
-        userRepository.deleteAll()
-
-        val existingUserId = saveOneUser().uid
-
-        val existingUserRequest = NameEmailRequest("Name", "Email")
-
-        val responseOAuthExistingRegisteredUser =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/login/oauth2/google",
-                        existingUserRequest,
-                        User::class.java
-                )
-        
-        assertEquals(202, responseOAuthExistingRegisteredUser.statusCode.value())
-
-        val loginConfirmationRequest = AccountConfirmationRequest("Email", "Password", "Email")
-        val responseGoogleConfirmation =
-                restTemplate.postForEntity(
-                        getRootUrl() + "/account-confirmation",
-                        loginConfirmationRequest,
-                        User::class.java
-                )
-
-        assertEquals(200, responseGoogleConfirmation.statusCode.value())
-        assertNotNull(responseGoogleConfirmation.body)
-//        assertTrue(responseGoogleConfirmation.body.isGoogleLogin)
-    }
-
-    @Test
-    fun `enable 2fa`() {
-        userRepository.deleteAll()
-
-        val secret = "ABCDEFGHIJKLMNOP1234"
-        val enable2FARequest = Enable2FARequest(secret)
-
-        val user1id = saveOneUser(email="Email1", has2fa=true).uid
-
-        val response1 = restTemplate.postForEntity(
-            getRootUrl() + "/enable2FA/" + user1id,
-            enable2FARequest,
-            User::class.java
-        )
-
-        assertEquals(417, response1.statusCode.value())
-
-        val user2id = saveOneUser(email="Email2", has2fa=false).uid
-        val response2 = restTemplate.postForEntity(
-            getRootUrl() + "/enable2FA/" + user2id,
-            enable2FARequest,
-            User::class.java
-        )
-
-        assertEquals(200, response2.statusCode.value())
-    }
-
-    @Test
-    fun `disable 2fa`() {
-        userRepository.deleteAll()
-
-        val user1id = saveOneUser(email="Email1", has2fa=false).uid
-
-        val response1 = restTemplate.exchange(
-            getRootUrl() + "/disable2FA/$user1id",
+        val response = request(
             HttpMethod.PUT,
+            "/reset-password-by-email",
             null,
-            User::class.java
+            mapOf(
+                "email" to userB.email,
+                "newPassword" to "UnauthorizedPassword123!",
+                "resetPasswordToken" to "user-a-reset-token"
+            )
         )
 
-        assertEquals(417, response1.statusCode.value())
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
 
-        val user2id = saveOneUser(email="Email2", has2fa=true).uid
-        val response2 = restTemplate.exchange(
-            getRootUrl() + "/disable2FA/$user2id",
-            HttpMethod.PUT,
+        val unchangedA = userRepository.findOneByUid(userA.uid)
+        val unchangedB = userRepository.findOneByUid(userB.uid)
+
+        assertTrue(BCrypt.checkpw("Password123!", unchangedA.password))
+        assertTrue(BCrypt.checkpw("Password123!", unchangedB.password))
+        assertEquals("user-a-reset-token", unchangedA.passwordToken)
+        assertEquals("user-b-reset-token", unchangedB.passwordToken)
+    }
+
+
+    @Test
+    fun `generate token saves expiring token and sends reset email`() {
+        val user = saveUser(email = "reset-request@example.test")
+        val before = LocalDateTime.now()
+
+        val response = request(
+            HttpMethod.POST,
+            "/generate-token",
             null,
-            User::class.java
+            mapOf("name" to user.name, "email" to user.email)
         )
 
-        assertEquals(200, response2.statusCode.value())
+        val after = LocalDateTime.now()
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+
+        val updated = userRepository.findOneByUid(user.uid)
+        assertNotNull(updated.passwordToken)
+        assertTrue(updated.passwordToken!!.isNotBlank())
+        assertTrue(updated.passwordTokenExpiration!!.isAfter(before.plusMinutes(59)))
+        assertTrue(updated.passwordTokenExpiration!!.isBefore(after.plusHours(1).plusMinutes(1)))
+
+        verify(emailService).sendResetPasswordEmail(
+            user.name,
+            user.email,
+            updated.passwordToken
+        )
+    }
+
+    @Test
+    fun `generate token does not reveal nonexistent accounts`() {
+        val response = request(
+            HttpMethod.POST,
+            "/generate-token",
+            null,
+            mapOf(
+                "name" to "Unknown User",
+                "email" to "unknown-account@example.test"
+            )
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertTrue(
+            response.body.orEmpty().contains(
+                "If the account exists"
+            )
+        )
+
+        verify(emailService, never()).sendResetPasswordEmail(
+            anyString(),
+            anyString(),
+            anyString()
+        )
+    }
+
+
+    @Test
+    fun `authenticate token accepts valid token`() {
+        val user = saveUser(resetToken = "valid-auth-token")
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to user.email,
+                "resetPasswordToken" to "valid-auth-token"
+            )
+        )
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertTrue(
+            com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
+                .readTree(response.body)
+                .path("valid")
+                .asBoolean()
+        )
+    }
+
+    @Test
+    fun `authenticate token rejects invalid token`() {
+        val user = saveUser(resetToken = "correct-auth-token")
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to user.email,
+                "resetPasswordToken" to "wrong-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `authenticate token rejects expired token`() {
+        val user = saveUser(
+            resetToken = "expired-auth-token",
+            expiresAt = LocalDateTime.now().minusMinutes(1)
+        )
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to user.email,
+                "resetPasswordToken" to "expired-auth-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `authenticate token rejects another users token`() {
+        saveUser(
+            email = "auth-user-a@example.test",
+            resetToken = "auth-user-a-token"
+        )
+        val userB = saveUser(
+            email = "auth-user-b@example.test",
+            resetToken = "auth-user-b-token"
+        )
+
+        val response = request(
+            HttpMethod.POST, "/authenticate-token", null,
+            mapOf(
+                "email" to userB.email,
+                "resetPasswordToken" to "auth-user-a-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `email password reset rejects expired token`() {
+        val user = saveUser(
+            resetToken = "expired-email-token",
+            expiresAt = LocalDateTime.now().minusMinutes(1)
+        )
+
+        val response = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "NewPassword123!",
+                "resetPasswordToken" to "expired-email-token"
+            )
+        )
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
+    }
+
+    @Test
+    fun `email password reset rejects existing password`() {
+        val user = saveUser(resetToken = "same-password-token")
+
+        val response = request(
+            HttpMethod.PUT, "/reset-password-by-email", null,
+            mapOf(
+                "email" to user.email,
+                "newPassword" to "Password123!",
+                "resetPasswordToken" to "same-password-token"
+            )
+        )
+
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
+    }
+
+    @Test
+    fun `expired reset token is rejected`() {
+        val user = saveUser(resetToken = "expired", expiresAt = LocalDateTime.now().minusMinutes(1))
+        val response = request(
+            HttpMethod.PUT, "/reset-password/${user.uid}", null,
+            PasswordRequest("NewPassword123!", "expired")
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, response.statusCode)
     }
 }
