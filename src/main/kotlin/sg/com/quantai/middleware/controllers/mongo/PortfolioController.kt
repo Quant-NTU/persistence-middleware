@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
 import sg.com.quantai.middleware.data.mongo.*
 import sg.com.quantai.middleware.data.mongo.enums.PortfolioActionEnum
+import sg.com.quantai.middleware.data.mongo.enums.AssetType
+import sg.com.quantai.middleware.data.mongo.enums.OrderSide
+import sg.com.quantai.middleware.services.PortfolioBookingService
 import sg.com.quantai.middleware.repositories.mongo.*
 import sg.com.quantai.middleware.requests.PortfolioRequest
 import sg.com.quantai.middleware.requests.assets.CryptoRequest
@@ -25,7 +28,8 @@ class PortfolioController(
     private val cryptoRepository: CryptoRepository,
     private val stockRepository: StockRepository,
     private val forexRepository: ForexRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val bookingService: PortfolioBookingService,
 ) {
     private val logger = LoggerFactory.getLogger(PortfolioController::class.java)
 
